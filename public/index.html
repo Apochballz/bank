@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Olith Banking — Keep what you're building.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root{
+    --ink: #1f2d2b;
+    --ink-deep: #16201d;
+    --sage: #7f938d;
+    --sage-deep: #45524e;
+    --stone: #efeeec;
+    --paper: #fbfbfa;
+    --fog: #d9dcdb;
+    --clay: #b5544a;
+    --moss-ok: #5a8a72;
+    --text-muted: #9aa39f;
+    --text-body: #4a5451;
+    --divider: #e2e1de;
+    --r-xl: 28px;
+    --r-lg: 18px;
+    --r-md: 14px;
+    --r-sm: 10px;
+  }
+
+  html{ scroll-behavior: smooth; }
+
+  body{
+    background: var(--stone);
+    color: var(--ink);
+    font-family: 'Manrope', sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .eyebrow{
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--clay);
+  }
+  .eyebrow.on-dark{ color: #c98f88; }
+
+  h1, h2, h3{ font-family: 'Fraunces', serif; color: var(--ink); }
+
+  em.accent{ font-style: italic; color: var(--sage-deep); }
+  em.accent.on-dark{ color: var(--fog); }
+
+  a{ color: inherit; }
+
+  /* ── NAV ─────────────────────────────────────── */
+  .navbar{
+    position: fixed;
+    top: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: min(940px, calc(100% - 2.5rem));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.7rem 0.85rem 0.7rem 1.4rem;
+    border-radius: 999px;
+    background: rgba(251,251,250,0.78);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(31,45,43,0.08);
+    box-shadow: 0 12px 32px rgba(22,32,29,0.06);
+  }
+  .nav-logo{
+    display: flex; align-items: center; gap: 0.55rem;
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .nav-logo svg{ flex-shrink: 0; }
+  .nav-links{ display: flex; gap: 1.8rem; list-style: none; align-items: center; }
+  .nav-links a{
+    font-size: 0.85rem; font-weight: 600;
+    text-decoration: none; color: var(--text-body);
+    transition: color .2s;
+  }
+  .nav-links a:hover{ color: var(--ink); }
+  .nav-actions{ display: flex; align-items: center; gap: 0.75rem; }
+  .nav-login{
+    font-size: 0.83rem; font-weight: 700;
+    text-decoration: none; color: var(--ink);
+    padding: 0.55rem 0.85rem;
+    border-radius: 999px;
+    transition: color .2s, background .2s;
+  }
+  .nav-login:hover{ color: var(--clay); background: rgba(31,45,43,0.04); }
+  .nav-cta{
+    display: inline-flex; align-items: center;
+    padding: 0.6rem 1.3rem;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 0.82rem; font-weight: 700;
+    border-radius: 999px;
+    text-decoration: none;
+    transition: background .25s, transform .2s;
+  }
+  .nav-cta:hover{ background: var(--sage-deep); transform: translateY(-1px); }
+  @media (max-width: 760px){ .nav-links{ display:none; } }
+  @media (max-width: 480px){
+    .nav-login{ padding: 0.45rem 0.55rem; font-size: 0.78rem; }
+    .nav-cta{ padding: 0.55rem 0.95rem; font-size: 0.78rem; }
+  }
+
+  /* ── HERO ────────────────────────────────────── */
+  .hero{
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    align-items: center;
+    gap: 2rem;
+    padding: 8rem 5vw 4rem;
+    background: var(--ink-deep);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before{
+    content:'';
+    position:absolute; inset:0;
+    background:
+      radial-gradient(ellipse 60% 50% at 15% 10%, rgba(127,147,141,0.18), transparent 60%),
+      radial-gradient(ellipse 50% 60% at 90% 90%, rgba(181,84,74,0.10), transparent 60%);
+    pointer-events:none;
+  }
+  @media (max-width: 900px){
+    .hero{ grid-template-columns: 1fr; padding-top: 7rem; }
+  }
+
+  .hero-copy{ position: relative; z-index: 2; }
+  .hero-eyebrow{ opacity:0; transform:translateY(14px); margin-bottom: 1.4rem; }
+  .hero-h1{
+    font-weight: 500;
+    font-size: clamp(2.4rem, 4.6vw, 4rem);
+    line-height: 1.04;
+    letter-spacing: -0.01em;
+    color: var(--paper);
+    opacity:0; transform:translateY(24px);
+  }
+  .hero-h1 .line{ display:block; }
+  .hero-sub{
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: rgba(251,251,250,0.62);
+    max-width: 420px;
+    margin-top: 1.5rem;
+    opacity:0; transform:translateY(24px);
+  }
+  .hero-actions{
+    display:flex; align-items:center; gap: 1.5rem;
+    margin-top: 2.2rem;
+    opacity:0; transform:translateY(24px);
+    flex-wrap: wrap;
+  }
+  .btn-primary{
+    display:inline-flex; align-items:center; gap:0.5rem;
+    padding: 0.95rem 1.9rem;
+    background: var(--clay);
+    color: #fff;
+    font-weight: 700; font-size: 0.92rem;
+    border-radius: 999px;
+    text-decoration:none;
+    transition: transform .25s, background .25s;
+  }
+  .btn-primary:hover{ transform: translateY(-2px); background:#9d4339; }
+  .link-ghost{
+    font-size: 0.88rem; font-weight: 600;
+    color: rgba(251,251,250,0.55);
+    text-decoration:none;
+    border-bottom: 1px solid rgba(251,251,250,0.25);
+    padding-bottom: 2px;
+    transition: color .2s, border-color .2s;
+  }
+  .link-ghost:hover{ color: var(--paper); border-color: rgba(251,251,250,0.6); }
+
+  /* ── VAULT DIAL (signature element) ─────────── */
+  .vault-stage{
+    position: relative;
+    z-index: 2;
+    display:flex; align-items:center; justify-content:center;
+    height: 460px;
+  }
+  .vault-dial{ width: min(420px, 90%); height: auto; }
+  .dial-ring{ transform-origin: 210px 210px; }
+  .dial-label{
+    font-family:'Space Mono', monospace;
+    fill: rgba(251,251,250,0.4);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+  .vault-core-amount{
+    font-family:'Fraunces', serif;
+    font-weight: 500;
+    font-size: 30px;
+    fill: var(--paper);
+  }
+  .vault-core-label{
+    font-family:'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    fill: rgba(251,251,250,0.45);
+  }
+
+  /* ── TICKER ──────────────────────────────────── */
+  .ticker{
+    background: var(--ink-deep);
+    border-top: 1px solid rgba(251,251,250,0.08);
+    padding: 0.9rem 0;
+    overflow: hidden;
+  }
+  .ticker-track{
+    display:flex; width:max-content;
+    animation: scroll-left 32s linear infinite;
+  }
+  .ticker-item{
+    display:flex; align-items:center; gap:0.65rem;
+    padding: 0 2.4rem;
+    white-space: nowrap;
+    font-family:'Space Mono', monospace;
+    font-size: 0.78rem;
+    color: rgba(251,251,250,0.5);
+  }
+  .ticker-item b{ color: var(--paper); font-weight: 700; }
+  .ticker-item::after{ content:'/'; margin-left:2.4rem; color: rgba(251,251,250,0.2); }
+  @keyframes scroll-left{ from{ transform: translateX(0); } to{ transform: translateX(-50%); } }
+
+  /* ── SECTION SHELL ───────────────────────────── */
+  section{ padding: 6.5rem 5vw; }
+  .section-head{ max-width: 620px; margin-bottom: 3.5rem; }
+  .section-head h2{
+    font-weight: 500;
+    font-size: clamp(1.9rem, 3.6vw, 2.75rem);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin-top: 0.9rem;
+  }
+
+  /* ── PROOF / PRODUCT SECTION ─────────────────── */
+  .proof{ background: var(--stone); }
+  .proof-grid{
+    display:grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 1.25rem;
+  }
+  @media (max-width: 880px){ .proof-grid{ grid-template-columns: 1fr; } }
+
+  .proof-panel{
+    background: var(--paper);
+    border: 1px solid var(--divider);
+    border-radius: var(--r-xl);
+    padding: 2.25rem;
+    display:flex; flex-direction:column;
+  }
+  .proof-panel-stack{ display:flex; flex-direction:column; gap:1.25rem; }
+  .proof-tag{
+    font-family:'Space Mono', monospace;
+    font-size: 0.68rem; letter-spacing:0.1em; text-transform:uppercase;
+    color: var(--sage-deep); margin-bottom: 0.6rem;
+  }
+  .proof-panel h3{
+    font-weight:500; font-size:1.35rem; margin-bottom:0.55rem;
+  }
+  .proof-panel p{
+    font-size: 0.9rem; color: var(--text-body); line-height:1.6; max-width: 420px;
+  }
+
+  /* mini balance mock */
+  .mini-balance{
+    margin-top: 1.75rem;
+    background: var(--stone);
+    border: 1px solid var(--divider);
+    border-radius: var(--r-lg);
+    padding: 1.4rem 1.5rem;
+  }
+  .mini-balance .lbl{ font-size:0.72rem; color:var(--text-muted); margin-bottom:0.3rem; }
+  .mini-balance .amt{ font-family:'Fraunces', serif; font-weight:500; font-size:1.9rem; color:var(--ink); }
+  .mini-cards-row{ display:flex; gap:0.85rem; margin-top:1.5rem; }
+  .mini-card{
+    flex:1; border-radius: var(--r-md); padding: 1rem;
+    background: linear-gradient(135deg, var(--sage) 0%, var(--sage-deep) 100%);
+    color:#fff; min-height: 88px;
+    display:flex; flex-direction:column; justify-content:space-between;
+  }
+  .mini-card.light{
+    background: var(--fog); color: var(--text-body);
+  }
+  .mini-card .num{ font-family:'Space Mono', monospace; font-size:0.72rem; letter-spacing:0.05em; opacity:0.9; }
+  .mini-card .bal{ font-size:0.82rem; font-weight:700; }
+
+  .mini-vault{
+    margin-top: 1.5rem;
+    background: var(--stone);
+    border: 1px solid var(--divider);
+    border-radius: var(--r-lg);
+    padding: 1.2rem 1.4rem;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .mini-vault .amt{ font-family:'Fraunces', serif; font-weight:500; font-size:1.3rem; }
+  .mini-vault .lbl{ font-size:0.75rem; color:var(--text-muted); }
+  .mini-pill{
+    font-family:'Space Mono', monospace; font-size:0.68rem;
+    background:#fff; border:1px solid var(--divider);
+    border-radius:999px; padding:0.4rem 0.85rem; color:var(--text-body);
+  }
+
+  .mini-institution{
+    display:flex; align-items:center; justify-content:space-between;
+    background: var(--stone); border:1px solid var(--divider);
+    border-radius: var(--r-md); padding: 0.9rem 1.1rem; margin-top: 0.7rem;
+  }
+  .mini-institution-left{ display:flex; align-items:center; gap:0.7rem; }
+  .mini-institution-logo{
+    width:32px; height:32px; border-radius: 9px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-weight:700; font-size:0.78rem;
+  }
+  .mini-institution .name{ font-size:0.85rem; font-weight:700; }
+  .mini-institution .meta{ font-size:0.7rem; color:var(--text-muted); }
+  .mini-institution .bal{ font-size:0.85rem; font-weight:700; }
+
+  /* ── STATEMENT (dark, full bleed) ─────────────── */
+  .statement{
+    background: var(--ink-deep);
+    text-align:center;
+    padding: 8rem 5vw;
+  }
+  .statement .eyebrow{ display:block; margin-bottom:1.75rem; }
+  .statement h2{
+    color: var(--paper);
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(1.8rem, 4vw, 3.2rem);
+    line-height: 1.35;
+    max-width: 780px;
+    margin: 0 auto;
+  }
+
+  /* ── LEDGER STEPS (how an account opens) ──────── */
+  .ledger{ background: var(--fog); }
+  .ledger-list{ border-top: 1px solid var(--divider); }
+  .ledger-row{
+    display:grid;
+    grid-template-columns: 90px 1fr 1.4fr;
+    gap: 2rem;
+    align-items: start;
+    padding: 2.25rem 0;
+    border-bottom: 1px solid var(--divider);
+  }
+  @media (max-width: 720px){
+    .ledger-row{ grid-template-columns: 60px 1fr; }
+    .ledger-row .ledger-desc{ grid-column: 1 / -1; }
+  }
+  .ledger-num{
+    font-family:'Space Mono', monospace;
+    font-size: 0.85rem; color: var(--sage-deep); padding-top:0.2rem;
+  }
+  .ledger-title{ font-weight:500; font-size:1.2rem; }
+  .ledger-desc{ font-size: 0.92rem; color: var(--text-body); line-height:1.65; max-width: 460px; }
+
+  /* ── CLAUSES (security) ───────────────────────── */
+  .clauses{ background: var(--paper); }
+  .clauses-grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+  @media (max-width:860px){ .clauses-grid{ grid-template-columns: 1fr; } }
+  .clause{
+    border: 1px solid var(--divider);
+    border-radius: var(--r-lg);
+    padding: 2rem 1.75rem;
+  }
+  .clause .mark{
+    font-family:'Space Mono', monospace;
+    color: var(--clay); font-size:0.85rem; margin-bottom:1.1rem; display:block;
+  }
+  .clause h3{ font-weight:500; font-size:1.05rem; margin-bottom:0.65rem; }
+  .clause p{ font-size:0.87rem; color:var(--text-body); line-height:1.6; }
+
+  /* ── PRICING ─────────────────────────────────── */
+  .pricing{ background: var(--ink-deep); }
+  .pricing .section-head h2{ color: var(--paper); }
+  .pricing-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:1.25rem;
+  }
+  @media (max-width:860px){ .pricing-grid{ grid-template-columns:1fr; } }
+  .plan{
+    border-radius: var(--r-xl);
+    padding: 2.25rem;
+    background: rgba(251,251,250,0.04);
+    border: 1px solid rgba(251,251,250,0.1);
+  }
+  .plan.featured{
+    background: var(--paper);
+    border-color: var(--paper);
+  }
+  .plan-name{ font-family:'Space Mono', monospace; font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color: rgba(251,251,250,0.5); margin-bottom:1.1rem; }
+  .plan.featured .plan-name{ color: var(--sage-deep); }
+  .plan-price{ font-family:'Fraunces', serif; font-weight:500; font-size:2.6rem; color: var(--paper); }
+  .plan.featured .plan-price{ color: var(--ink); }
+  .plan-per{ font-size:0.8rem; color: rgba(251,251,250,0.4); margin-bottom:1.6rem; }
+  .plan.featured .plan-per{ color: var(--text-muted); }
+  .plan ul{ list-style:none; display:flex; flex-direction:column; gap:0.7rem; margin-bottom: 2rem; }
+  .plan li{ font-size:0.86rem; color: rgba(251,251,250,0.7); padding-left:1.1rem; position:relative; }
+  .plan.featured li{ color: var(--text-body); }
+  .plan li::before{ content:'—'; position:absolute; left:0; color: var(--clay); }
+  .plan-cta{
+    display:block; text-align:center; width:100%;
+    padding:0.85rem; border-radius:999px;
+    font-weight:700; font-size:0.88rem; text-decoration:none;
+    border:1px solid rgba(251,251,250,0.2); color: rgba(251,251,250,0.75);
+    transition: all .25s;
+  }
+  .plan-cta:hover{ border-color: rgba(251,251,250,0.55); color:#fff; background: rgba(255,255,255,0.06); }
+  .plan.featured .plan-cta{ background: var(--ink); border-color: var(--ink); color:#fff; }
+  .plan.featured .plan-cta:hover{ background: var(--sage-deep); border-color: var(--sage-deep); }
+
+  /* ── FOOTER ──────────────────────────────────── */
+  footer{ background: var(--ink-deep); padding: 4rem 5vw 2.25rem; }
+  .footer-grid{
+    display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap:2.5rem;
+    padding-bottom: 3rem; border-bottom: 1px solid rgba(251,251,250,0.08);
+  }
+  @media (max-width:700px){ .footer-grid{ grid-template-columns:1fr 1fr; } }
+  .footer-brand{ font-family:'Fraunces', serif; font-weight:600; font-size:1.3rem; color:var(--paper); margin-bottom:0.7rem; }
+  .footer-tag{ font-size:0.85rem; color:rgba(251,251,250,0.4); max-width:230px; line-height:1.6; }
+  .footer-col-title{ font-family:'Space Mono', monospace; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; color:rgba(251,251,250,0.3); margin-bottom:0.9rem; }
+  .footer-links{ list-style:none; display:flex; flex-direction:column; gap:0.6rem; }
+  .footer-links a{ font-size:0.85rem; color:rgba(251,251,250,0.55); text-decoration:none; transition: color .2s; }
+  .footer-links a:hover{ color:var(--paper); }
+  .footer-bottom{
+    display:flex; align-items:center; justify-content:space-between; gap:1rem;
+    padding-top:1.75rem; flex-wrap:wrap;
+  }
+  .footer-legal{ font-family:'Space Mono', monospace; font-size:0.62rem; color:rgba(251,251,250,0.25); max-width:560px; line-height:1.6; }
+  .status-pill{
+    display:flex; align-items:center; gap:0.5rem;
+    padding:0.4rem 0.9rem; border-radius:999px;
+    border:1px solid rgba(90,138,114,0.3); background:rgba(90,138,114,0.08);
+    flex-shrink:0;
+  }
+  .status-dot{ width:6px; height:6px; background:var(--moss-ok); border-radius:50%; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.5;transform:scale(.85);} }
+  .status-text{ font-family:'Space Mono', monospace; font-size:0.65rem; color:var(--moss-ok); letter-spacing:0.05em; }
+
+  /* ── REVEAL ──────────────────────────────────── */
+  .reveal{ opacity:0; transform:translateY(26px); transition:opacity .7s cubic-bezier(.25,.46,.45,.94), transform .7s cubic-bezier(.25,.46,.45,.94); }
+  .reveal.visible{ opacity:1; transform:translateY(0); }
+  .d1{ transition-delay:.08s; } .d2{ transition-delay:.16s; } .d3{ transition-delay:.24s; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="/" class="nav-logo">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7v3c0 5.25 3.75 9.75 9 11 5.25-1.25 9-5.75 9-11V7l-9-5z" fill="#1f2d2b"/></svg>
+    Olith Banking
+  </a>
+  <ul class="nav-links">
+    <li><a href="#product">Product</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#how">Opening an account</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+  </ul>
+  <div class="nav-actions">
+    <a href="/login" class="nav-login">Log in</a>
+    <a href="/signup" class="nav-cta auth-cta-target">Open an account</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="hero-copy">
+    <span class="eyebrow on-dark hero-eyebrow" id="e1">A CHECKING ACCOUNT THAT ALSO KEEPS A LEDGER</span>
+    <h1 class="hero-h1" id="h1">
+      <span class="line">Keep what</span>
+      <span class="line">you're <em class="accent on-dark">building.</em></span>
+    </h1>
+    <p class="hero-sub" id="sub">Every account, every linked bank, every dollar set aside for later — held in one place, and never rearranged into something you didn't ask for.</p>
+    <div class="hero-actions" id="cta">
+      <a href="/signup" class="btn-primary auth-cta-target"><span>Open an account →</span></a>
+      <a href="#product" class="link-ghost">See how it's built ↓</a>
+    </div>
+  </div>
+
+  <div class="vault-stage">
+    <svg class="vault-dial" viewBox="0 0 420 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle class="dial-ring" id="ring1" cx="210" cy="210" r="190" stroke="rgba(251,251,250,0.08)" stroke-width="1"/>
+      <circle class="dial-ring" id="ring2" cx="210" cy="210" r="150" stroke="rgba(127,147,141,0.35)" stroke-width="1.5" stroke-dasharray="4 10" stroke-linecap="round"/>
+      <circle class="dial-ring" id="ring3" cx="210" cy="210" r="112" stroke="rgba(251,251,250,0.14)" stroke-width="1"/>
+      <circle cx="210" cy="210" r="82" fill="url(#coreGrad)"/>
+      <defs>
+        <linearGradient id="coreGrad" x1="128" y1="128" x2="292" y2="292" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7f938d"/>
+          <stop offset="100%" stop-color="#3a4642"/>
+        </linearGradient>
+      </defs>
+      <text x="210" y="203" text-anchor="middle" class="vault-core-label">STACKING VAULT</text>
+      <text x="210" y="230" text-anchor="middle" class="vault-core-amount" id="dialAmount">$0.00</text>
+      <g id="tickMarks"></g>
+    </svg>
+  </div>
+</section>
+
+<div class="ticker">
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<!-- PRODUCT PROOF -->
+<section class="proof" id="product">
+  <div class="section-head reveal">
+    <span class="eyebrow">WHAT'S ACTUALLY INSIDE</span>
+    <h2>Not a mockup.<br/>This is the account.</h2>
+  </div>
+
+  <div class="proof-grid">
+    <div class="proof-panel reveal">
+      <span class="proof-tag">Balance &amp; cards</span>
+      <h3>One balance, read at a glance.</h3>
+      <p>Checking, savings, and every card tied to them, shown the way you'd want a bank statement to read — plainly, and in order.</p>
+      <div class="mini-balance">
+        <div class="lbl">Balance</div>
+        <div class="amt">$12,280.51</div>
+      </div>
+      <div class="mini-cards-row">
+        <div class="mini-card">
+          <span class="num">•••• 3600</span>
+          <span class="bal">$10,000.00</span>
+        </div>
+        <div class="mini-card light">
+          <span class="num">•••• 6907</span>
+          <span class="bal">$2,280.51</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="proof-panel-stack">
+      <div class="proof-panel reveal d1">
+        <span class="proof-tag">External banks</span>
+        <h3>Link a bank. See what it sees.</h3>
+        <p>Connect an outside account once — its balance and its own transactions show up right where you'd look for them.</p>
+        <div class="mini-institution">
+          <div class="mini-institution-left">
+            <div class="mini-institution-logo" style="background:#0f6fb0">C</div>
+            <div>
+              <div class="name">Chase</div>
+              <div class="meta">2 accounts linked</div>
+            </div>
+          </div>
+          <div class="bal">$16,000.00</div>
+        </div>
+      </div>
+
+      <div class="proof-panel reveal d2">
+        <span class="proof-tag">Stacking vault</span>
+        <h3>Set money aside, on purpose.</h3>
+        <p>A goal, a target date, and a switch to automate it — no separate app to remember to open.</p>
+        <div class="mini-vault">
+          <div>
+            <div class="amt">$79,000.00</div>
+            <div class="lbl">Stacking Vault</div>
+          </div>
+          <div class="mini-pill">Auto: on</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATEMENT -->
+<section class="statement">
+  <span class="eyebrow on-dark">A SHORT PHILOSOPHY</span>
+  <h2 class="reveal">A bank shouldn't be a surprise. <em class="accent on-dark">Not once, not ever</em> — not the fee, not the fine print, not where your money went.</h2>
+</section>
+
+<!-- HOW AN ACCOUNT OPENS -->
+<section class="ledger" id="how">
+  <div class="section-head reveal">
+    <span class="eyebrow">OPENING AN ACCOUNT</span>
+    <h2>Three entries. That's the whole process.</h2>
+  </div>
+
+  <div class="ledger-list">
+    <div class="ledger-row reveal">
+      <div class="ledger-num">01</div>
+      <div class="ledger-title">Apply</div>
+      <div class="ledger-desc">Your name, an address, a government ID. No credit pull, no branch, no appointment.</div>
+    </div>
+    <div class="ledger-row reveal d1">
+      <div class="ledger-num">02</div>
+      <div class="ledger-title">Verify</div>
+      <div class="ledger-desc">A photo of your ID confirms who you are — the same evening, not the same week.</div>
+    </div>
+    <div class="ledger-row reveal d2">
+      <div class="ledger-num">03</div>
+      <div class="ledger-title">Bank</div>
+      <div class="ledger-desc">A checking account, a virtual card, and a place to link whatever else you already bank with.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SECURITY CLAUSES -->
+<section class="clauses" id="security">
+  <div class="section-head reveal">
+    <span class="eyebrow">HOW IT'S PROTECTED</span>
+    <h2>Written down, not just promised.</h2>
+  </div>
+  <div class="clauses-grid">
+    <div class="clause reveal">
+      <span class="mark">§ 1</span>
+      <h3>FDIC insured to $250,000</h3>
+      <p>Held through our partner bank, insured the same way any account at a national bank would be.</p>
+    </div>
+    <div class="clause reveal d1">
+      <span class="mark">§ 2</span>
+      <h3>Encrypted, end to end</h3>
+      <p>256-bit encryption on every transaction and every credential — nothing sits in the open, ever.</p>
+    </div>
+    <div class="clause reveal d2">
+      <span class="mark">§ 3</span>
+      <h3>Watched around the clock</h3>
+      <p>Unusual activity is flagged as it happens, and a card can be frozen in one tap, at any hour.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="section-head reveal">
+    <span class="eyebrow on-dark">PRICING</span>
+    <h2>No plan hides a fee<br/>behind another plan.</h2>
+  </div>
+  <div class="pricing-grid">
+    <div class="plan reveal">
+      <div class="plan-name">Essential</div>
+      <div class="plan-price">$0</div>
+      <div class="plan-per">per month, always</div>
+      <ul>
+        <li>Checking account</li>
+        <li>Virtual + physical card</li>
+        <li>Link unlimited outside banks</li>
+        <li>One Stacking Vault</li>
+      </ul>
+      <a href="/signup?plan=essential" class="plan-cta">Open Essential</a>
+    </div>
+    <div class="plan featured reveal d1">
+      <div class="plan-name">Plus</div>
+      <div class="plan-price">$7</div>
+      <div class="plan-per">per month</div>
+      <ul>
+        <li>Everything in Essential</li>
+        <li>2.5% on your Vault balance</li>
+        <li>Early direct deposit</li>
+        <li>Unlimited Stacking Vaults</li>
+      </ul>
+      <a href="/signup?plan=plus" class="plan-cta">Open Plus</a>
+    </div>
+    <div class="plan reveal d2">
+      <div class="plan-name">Premium</div>
+      <div class="plan-price">$19</div>
+      <div class="plan-per">per month</div>
+      <ul>
+        <li>Everything in Plus</li>
+        <li>3.5% on your Vault balance</li>
+        <li>Metal card</li>
+        <li>A person to call, not a queue</li>
+      </ul>
+      <a href="/signup?plan=premium" class="plan-cta">Open Premium</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-brand"><a href="/" style="text-decoration:none; color:inherit;">Olith Banking</a></div>
+      <p class="footer-tag">A checking account, a place to save, and a view of every bank you already use.</p>
+    </div>
+    <div>
+      <div class="footer-col-title">Product</div>
+      <ul class="footer-links">
+        <li><a href="#product">What's inside</a></li>
+        <li><a href="#security">Security</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="/signup">Open an account</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Account</div>
+      <ul class="footer-links">
+        <li><a href="/login">Customer Login</a></li>
+        <li><a href="/signup">Create Account</a></li>
+        <li><a href="/admin">Admin Console</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Legal</div>
+      <ul class="footer-links">
+        <li><a href="#">Privacy</a></li>
+        <li><a href="#">Terms</a></li>
+        <li><a href="#">FDIC notice</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p class="footer-legal">Olith is a financial technology company, not a bank. Banking services and the Olith Visa® Debit Card are provided by our partner bank, Member FDIC.</p>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      <span class="status-text">ALL SYSTEMS OPERATIONAL</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Hero load sequence — one orchestrated moment, nothing scattered
+  const seq = [
+    { id: 'e1', delay: 150 },
+    { id: 'h1', delay: 320 },
+    { id: 'sub', delay: 520 },
+    { id: 'cta', delay: 680 },
+  ];
+  seq.forEach(({ id, delay }) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.transition = 'opacity .8s cubic-bezier(.25,.46,.45,.94), transform .8s cubic-bezier(.25,.46,.45,.94)';
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+      }
+    }, delay);
+  });
+
+  // Vault dial: rings settle in, balance counts up once, ticks orbit slowly
+  ['ring1','ring2','ring3'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.transformOrigin = '210px 210px';
+    el.style.transform = 'scale(0.85)';
+    el.style.opacity = '0';
+    el.style.transition = `opacity .8s ease ${300 + i*120}ms, transform .8s cubic-bezier(.25,.46,.45,.94) ${300 + i*120}ms`;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.style.opacity = '1';
+      el.style.transform = 'scale(1)';
+    }));
+  });
+
+  (function animateDial(){
+    const el = document.getElementById('dialAmount');
+    if (!el) return;
+    const target = 79000;
+    const duration = 1600;
+    const start = performance.now() + 700;
+    function step(now){
+      const t = Math.min(Math.max((now - start) / duration, 0), 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const val = target * eased;
+      el.textContent = '$' + val.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+      if (now < start + duration) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  })();
+
+  // slow ambient rotation on the two rings that read as a dial, not a spinner
+  let rot2 = 0, rot3 = 0;
+  function orbit(){
+    rot2 += 0.045; rot3 -= 0.03;
+    const r2 = document.getElementById('ring2');
+    const r3 = document.getElementById('ring3');
+    if (r2) r2.setAttribute('transform', `rotate(${rot2} 210 210)`);
+    if (r3) r3.setAttribute('transform', `rotate(${rot3} 210 210)`);
+    requestAnimationFrame(orbit);
+  }
+  requestAnimationFrame(orbit);
+
+  // Ticker content, built once so the loop is exact
+  const tickerFacts = [
+    'No monthly fee on Essential',
+    'FDIC insured to $250,000',
+    'Link unlimited outside banks',
+    'Under 3 minutes to apply',
+    '256-bit encryption, always on',
+    'A person answers, day or night',
+  ];
+  const track = document.getElementById('tickerTrack');
+  if (track) {
+    const buildOnce = () => tickerFacts.map(f => `<span class="ticker-item"><b>Olith</b> ${f}</span>`).join('');
+    track.innerHTML = buildOnce() + buildOnce();
+  }
+
+  // Scroll reveal
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting){ entry.target.classList.add('visible'); io.unobserve(entry.target); }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  revealEls.forEach(el => io.observe(el));
+
+  // Check if session is already active; if so, adjust CTA to dashboard
+  fetch('/api/auth/me', { credentials: 'include' })
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if (data && (data.user || data.email || data.id)) {
+        document.querySelectorAll('.auth-cta-target').forEach(btn => {
+          btn.textContent = 'Go to Dashboard →';
+          btn.href = '/app';
+        });
+        const navLogin = document.querySelector('.nav-login');
+        if (navLogin) {
+          navLogin.textContent = 'Dashboard';
+          navLogin.href = '/app';
+        }
+      }
+    })
+    .catch(() => {});
+</script>
+</body>
+</html>

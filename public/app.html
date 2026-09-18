@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Olith Banking</title>
+<style>
+  :root{
+    --bg-outer: #d9dcdb;
+    --panel-left: #efeeec;
+    --panel-right: #fbfbfa;
+    --text-dark: #1f2d2b;
+    --text-muted: #9aa39f;
+    --text-body: #4a5451;
+    --divider: #e2e1de;
+    --red: #b5544a;
+    --green: #5a8a72;
+    --sidebar-active: #e2e1de;
+    --card-dark-1: #7f938d;
+    --card-dark-2: #45524e;
+    --card-light: #e7e6e3;
+    --radius-xl: 28px;
+    --radius-lg: 18px;
+    --radius-md: 14px;
+    --radius-sm: 10px;
+  }
+
+  *{ box-sizing: border-box; margin:0; padding:0; }
+
+  html, body{ height: 100%; overflow: hidden; }
+
+  body{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg-outer);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 24px;
+    color: var(--text-dark);
+  }
+
+  .app{
+    width: 100%;
+    height: 100%;
+    max-width: 1360px;
+    max-height: 900px;
+    background: var(--panel-right);
+    border-radius: var(--radius-xl);
+    display:flex;
+    overflow:hidden;
+    box-shadow: 0 30px 60px -20px rgba(30,40,38,0.25);
+  }
+
+  /* ---------- Auth screen ---------- */
+  .auth-screen{
+    width:100%; height:100%;
+    background: var(--panel-right);
+    border-radius: var(--radius-xl);
+    display:flex;
+    box-shadow: 0 30px 60px -20px rgba(30,40,38,0.25);
+    overflow:hidden;
+  }
+  .auth-visual{
+    flex:1;
+    background: linear-gradient(135deg, var(--card-dark-1) 0%, var(--card-dark-2) 100%);
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    padding: 44px;
+    color:#fff;
+  }
+  .auth-visual .brand{ color:#fff; font-size:16px; }
+  .auth-visual .brand svg path{ fill:#fff; }
+  .auth-visual .quote{ font-size:26px; line-height:1.4; font-weight:500; max-width:380px; }
+  .auth-visual .quote-sub{ font-size:13px; opacity:.7; margin-top:14px; }
+  .auth-form-wrap{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 40px;
+  }
+  .auth-form{ width:100%; max-width:360px; }
+  .auth-form h1{ font-size:24px; font-weight:600; margin-bottom:6px; }
+  .auth-form p.sub{ font-size:13.5px; color:var(--text-muted); margin-bottom:26px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12.5px; color:var(--text-body); margin-bottom:6px; font-weight:500; }
+  .field input{
+    width:100%;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid #e2e1de;
+    background: #f9f9f7;
+    font-size:14px;
+    color: var(--text-dark);
+    outline:none;
+  }
+  .field input:focus{ border-color:#a7b3ae; background:#fff; }
+  .auth-submit{
+    width:100%;
+    padding:13px;
+    border-radius: var(--radius-sm);
+    border:none;
+    background: var(--text-dark);
+    color:#fff;
+    font-size:14.5px;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:6px;
+  }
+  .auth-submit:hover{ background:#324441; }
+  .auth-switch{ text-align:center; font-size:13px; color:var(--text-muted); margin-top:18px; }
+  .auth-switch a{ color: var(--text-dark); font-weight:600; cursor:pointer; text-decoration:none; }
+  .auth-note{
+    font-size:12px;
+    color: var(--text-muted);
+    background:#f6f6f4;
+    border-radius: var(--radius-sm);
+    padding:10px 12px;
+    margin-top:16px;
+  }
+  .auth-error{
+    font-size:12.5px;
+    color: var(--red);
+    margin-bottom:12px;
+    display:none;
+  }
+  .auth-back-link{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-decoration: none;
+    margin-bottom: 20px;
+    font-weight: 500;
+    transition: color .2s;
+  }
+  .auth-back-link:hover{ color: var(--text-dark); }
+  .hidden{ display:none !important; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width: 240px;
+    background: var(--panel-left);
+    padding: 28px 20px;
+    display:flex;
+    flex-direction:column;
+    flex-shrink:0;
+    overflow-y:auto;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; padding: 0 8px 32px 8px; font-weight:600; font-size: 15px; color: var(--text-dark); }
+  .brand svg{ flex-shrink:0; }
+  .nav{ display:flex; flex-direction:column; gap:4px; }
+  .nav-item{ display:flex; align-items:center; gap:12px; padding: 11px 12px; border-radius: var(--radius-sm); color: var(--text-body); font-size:14.5px; font-weight:500; cursor:pointer; transition: background .15s ease, color .15s ease; user-select:none; }
+  .nav-item svg{ opacity:.75; flex-shrink:0; }
+  .nav-item:hover{ background: rgba(0,0,0,0.03); }
+  .nav-item.active{ background: var(--sidebar-active); color: var(--text-dark); }
+  .nav-item.active svg{ opacity:1; }
+  .sidebar-bottom{ margin-top:auto; display:flex; flex-direction:column; gap:4px; padding-top: 20px; border-top: 1px solid var(--divider); }
+
+  /* ---------- Main / left panel ---------- */
+  .main{ flex:1; padding: 28px 36px; background: var(--panel-left); min-width: 380px; overflow-y:auto; }
+  .main-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 22px; }
+  .welcome h1{ font-size: 24px; font-weight: 600; line-height:1.3; color: var(--text-dark); }
+  .bell{ width:38px; height:38px; border-radius:50%; background:#fff; display:flex;align-items:center;justify-content:center; flex-shrink:0; box-shadow: 0 2px 6px rgba(0,0,0,0.04); cursor:pointer; }
+  .balance-label{ font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+  .balance-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 22px; }
+  .balance-amount{ font-size: 34px; font-weight:600; letter-spacing:-0.5px; }
+  .balance-actions{ display:flex; gap:10px; }
+  .pill-btn{ padding: 10px 22px; border-radius: 999px; font-size:14px; font-weight:500; cursor:pointer; border:none; background: transparent; color: var(--text-body); transition: background .15s ease, color .15s ease; }
+  .pill-btn.primary{ background:#fff; color: var(--text-dark); box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+  .pill-btn:hover{ background: rgba(255,255,255,0.6); }
+  .section-title{ font-size:13.5px; font-weight:600; color: var(--text-dark); margin-bottom: 14px; margin-top: 4px; }
+  .cards-row{ display:flex; gap:16px; margin-bottom: 20px; }
+  .card{ border-radius: var(--radius-lg); padding: 20px; display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden; }
+  .card-visual{ height: 108px; border-radius: var(--radius-md); margin-bottom: 14px; position:relative; overflow:hidden; }
+  .card.dark{ background:#fff; flex:1.15; }
+  .card.light{ background:#fff; flex:0.85; }
+  .card.dark .card-visual{ background: linear-gradient(135deg, var(--card-dark-1) 0%, var(--card-dark-2) 100%); }
+  .card.light .card-visual{ background: var(--card-light); }
+  .card-visual .chip{ position:absolute; top:16px; left:16px; width:28px; height:20px; border-radius:5px; background: rgba(255,255,255,0.85); display:flex; align-items:center; justify-content:center; }
+  .card-visual .chip::before, .card-visual .chip::after{ content:''; width:9px;height:9px; border-radius:50%; background: rgba(120,120,120,0.5); }
+  .card-visual .chip::before{ margin-right:1px; }
+  .card-number{ position:absolute; bottom:14px; left:16px; color:#fff; font-size:13px; letter-spacing:1px; font-weight:500; }
+  .card-exp{ position:absolute; bottom:14px; right:16px; color:#fff; font-size:12px; letter-spacing:0.5px; }
+  .card.light .card-number{ color:#8a8a86; }
+  .card-balance-label{ font-size:12px; color: var(--text-muted); margin-bottom:2px; }
+  .card-balance-amount{ font-size:16px; font-weight:600; color: var(--text-dark); }
+  .vault-box{ background:#fff; border-radius: var(--radius-lg); border: 1px solid #e7e6e3; padding: 18px 20px; display:flex; align-items:center; justify-content:space-between; }
+  .vault-amount{ font-size:19px; font-weight:600; margin-bottom:2px; }
+  .vault-label{ font-size:12.5px; color: var(--text-muted); }
+  .vault-avatars{ display:flex; margin-top:10px; }
+  .avatar{ width:22px;height:22px; border-radius:50%; border:2px solid #fff; margin-left:-6px; background: #cfd3d1; }
+  .avatar:first-child{ margin-left:0; }
+  .vault-actions{ display:flex; gap:10px; }
+  .vault-btn{ width:56px; display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px; border-radius: var(--radius-sm); background: #f6f6f4; font-size:11px; color: var(--text-body); cursor:pointer; border:1px solid #ececea; }
+  .vault-btn svg{ opacity:0.8; }
+
+  /* ---------- Right panel ---------- */
+  .right-panel{ flex:1; min-width: 380px; padding: 28px 36px; background: var(--panel-right); display:flex; flex-direction:column; overflow-y:auto; }
+  .rp-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 20px; }
+  .rp-header h2{ font-size:17px; font-weight:600; }
+  .rp-header-icons{ display:flex; gap:16px; color: var(--text-muted); }
+  .rp-header-icons svg{ cursor:pointer; }
+  .date-label{ font-size:12px; color: var(--text-muted); margin: 14px 0 10px 0; }
+  .txn{ display:flex; align-items:center; justify-content:space-between; padding: 12px 10px; border-radius: var(--radius-md); cursor:pointer; transition: background .15s ease; }
+  .txn:hover{ background: rgba(0,0,0,0.02); }
+  .txn.active{ background: #f2f1ee; }
+  .txn-left{ display:flex; align-items:center; gap:14px; }
+  .txn-icon{ width:38px;height:38px; border-radius:10px; background:#f2f1ee; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .txn-name{ font-size:14.5px; font-weight:500; color: var(--text-dark); }
+  .txn-sub{ font-size:12px; color: var(--text-muted); }
+  .txn-amount{ font-size:14.5px; font-weight:600; color: var(--text-dark); }
+  .txn-amount.negative{ color: var(--red); }
+  .divider-line{ height:1px; background: var(--divider); margin: 18px 0 22px 0; }
+  .payment-details h2{ font-size:17px; font-weight:600; margin-bottom: 20px; }
+  .pd-header{ display:flex; justify-content:space-between; align-items:center; }
+  .pd-more{ color: var(--text-muted); cursor:pointer; }
+  .pd-from-row{ display:flex; justify-content:space-between; align-items:flex-start; margin: 18px 0 22px 0; }
+  .pd-from-label{ font-size:12px; color: var(--text-muted); margin-bottom:6px; }
+  .pd-from-name{ font-size:15px; font-weight:600; }
+  .pd-amount{ font-size:22px; font-weight:600; }
+  .pd-meta{ display:flex; gap: 60px; margin-bottom: 30px; }
+  .pd-meta-col{ display:flex; flex-direction:column; gap:8px; }
+  .pd-meta-label{ font-size:11.5px; color: var(--text-muted); }
+  .pd-meta-value{ font-size:14px; font-weight:500; color: var(--text-dark); }
+  .pd-meta-right{ margin-left:auto; text-align:right; }
+  .pd-actions{ display:flex; gap:12px; margin-top:auto; }
+  .pd-btn{ padding: 12px 20px; border-radius: var(--radius-sm); font-size:13.5px; font-weight:500; border: 1px solid #ececea; background: #f9f9f7; color: var(--text-dark); cursor:pointer; transition: background .15s ease; }
+  .pd-btn:hover{ background:#f0f0ee; }
+  .pd-btn.secondary{ margin-left:auto; }
+
+  /* ---------- View switching ---------- */
+  .view{ display:none; }
+  .view.active{ display:block; }
+  .view-flex{ display:none; flex-direction:column; flex:1; }
+  .view-flex.active{ display:flex; }
+
+  /* ---------- External Banks ---------- */
+  .connect-bank-card{
+    background:#fff;
+    border: 1.5px dashed #d5d4d0;
+    border-radius: var(--radius-lg);
+    padding: 26px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom: 20px;
+  }
+  .connect-bank-card .cb-text h3{ font-size:15px; font-weight:600; margin-bottom:4px; }
+  .connect-bank-card .cb-text p{ font-size:12.5px; color:var(--text-muted); max-width:320px; }
+  .connect-btn{
+    padding: 11px 20px;
+    border-radius: 999px;
+    border:none;
+    background: var(--text-dark);
+    color:#fff;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .connect-btn:hover{ background:#324441; }
+  .connect-btn:disabled{ opacity:0.6; cursor:default; }
+
+  .institutions-grid{ display:flex; flex-direction:column; gap:12px; }
+  .institution-card{
+    background:#fff;
+    border-radius: var(--radius-lg);
+    border: 1px solid #ececea;
+    padding: 16px 18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    cursor:pointer;
+    transition: box-shadow .15s ease, border-color .15s ease;
+  }
+  .institution-card:hover{ box-shadow: 0 4px 14px rgba(30,40,38,0.06); border-color:#e2e1de; }
+  .institution-card.selected{ border-color:#7f938d; background:#f9faf9; }
+  .institution-left{ display:flex; align-items:center; gap:14px; }
+  .institution-logo{
+    width:42px; height:42px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-weight:700; font-size:15px; flex-shrink:0;
+  }
+  .institution-name{ font-size:14.5px; font-weight:600; }
+  .institution-meta{ font-size:12px; color:var(--text-muted); margin-top:2px; }
+  .institution-balance{ font-size:15px; font-weight:600; }
+  .institution-status{ font-size:11px; padding:3px 9px; border-radius:999px; background:#e9f2ec; color:var(--green); font-weight:600; margin-left:10px; }
+  .institution-status.error{ background:#fbeae8; color:var(--red); }
+
+  .eb-empty{ text-align:center; padding: 60px 20px; color:var(--text-muted); }
+  .eb-empty svg{ margin-bottom:14px; opacity:.5; }
+  .eb-empty p{ font-size:13.5px; }
+
+  /* ---------- Expense Tracker ---------- */
+  .et-summary-row{ display:flex; gap:16px; margin-bottom:22px; }
+  .et-summary-card{ flex:1; background:#fff; border-radius: var(--radius-lg); padding:18px 20px; border:1px solid #ececea; }
+  .et-summary-label{ font-size:12px; color:var(--text-muted); margin-bottom:6px; }
+  .et-summary-value{ font-size:20px; font-weight:600; }
+  .et-summary-value.spend{ color: var(--red); }
+  .category-row{ display:flex; flex-direction:column; gap:14px; }
+  .category-item{ background:#fff; border-radius: var(--radius-md); padding:14px 16px; border:1px solid #ececea; }
+  .category-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .category-name{ font-size:13.5px; font-weight:600; display:flex; align-items:center; gap:8px; }
+  .category-dot{ width:9px; height:9px; border-radius:50%; }
+  .category-amount{ font-size:13px; color:var(--text-body); }
+  .category-bar-bg{ height:7px; background:#f0f0ee; border-radius:999px; overflow:hidden; }
+  .category-bar-fill{ height:100%; border-radius:999px; }
+  .category-budget-note{ font-size:11px; color:var(--text-muted); margin-top:6px; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 1000px){
+    .app, .auth-screen{ flex-direction:column; }
+    .sidebar{ width:100%; flex-direction:row; align-items:center; flex-wrap:wrap; padding:16px 20px; }
+    .brand{ padding-bottom:0; margin-right:20px; }
+    .nav{ flex-direction:row; flex-wrap:wrap; }
+    .sidebar-bottom{ border-top:none; margin-top:0; margin-left:auto; flex-direction:row; }
+    .main, .right-panel{ min-width:0; padding:24px; }
+    .cards-row{ flex-direction:column; }
+    .auth-visual{ display:none; }
+  }
+
+  :focus-visible{ outline: 2px solid #6b7a76; outline-offset:2px; }
+</style>
+</head>
+<body>
+
+<!-- ============ AUTH SCREEN ============ -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-visual">
+    <a href="/" class="brand" style="text-decoration:none;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7v3c0 5.25 3.75 9.75 9 11 5.25-1.25 9-5.75 9-11V7l-9-5z"/></svg>
+      Olith Banking
+    </a>
+    <div>
+      <div class="quote">Banking, spending, and every linked account in one place.</div>
+      <div class="quote-sub">Connect external banks securely via Plaid and track every dollar automatically.</div>
+    </div>
+  </div>
+  <div class="auth-form-wrap">
+    <!-- Login -->
+    <div class="auth-form" id="loginForm">
+      <a href="/" class="auth-back-link">← Back to website</a>
+      <h1>Welcome back</h1>
+      <p class="sub">Log in to your Olith Banking account</p>
+      <div class="auth-error" id="loginError"></div>
+      <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="you@example.com"></div>
+      <div class="field"><label>Password</label><input type="password" id="loginPassword" placeholder="********"></div>
+      <button class="auth-submit" id="loginSubmit">Log In</button>
+      <div class="auth-switch">Don't have an account? <a id="showSignup">Sign up</a></div>
+      <div class="auth-note">Demo build: any email/password combination signed up locally will work. Backend wiring points are marked in the JS below (<code>// API INTEGRATION POINT</code>).</div>
+    </div>
+    <!-- Signup -->
+    <div class="auth-form hidden" id="signupForm">
+      <a href="/" class="auth-back-link">← Back to website</a>
+      <h1>Create your account</h1>
+      <p class="sub">Takes less than a minute</p>
+      <div class="auth-error" id="signupError"></div>
+      <div class="field"><label>Full name</label><input type="text" id="signupName" placeholder="Jane Doe"></div>
+      <div class="field"><label>Email</label><input type="email" id="signupEmail" placeholder="you@example.com"></div>
+      <div class="field"><label>Password</label><input type="password" id="signupPassword" placeholder="Min. 8 characters"></div>
+      <button class="auth-submit" id="signupSubmit">Create Account</button>
+      <div class="auth-switch">Already have an account? <a id="showLogin">Log in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div class="app hidden" id="appShell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7v3c0 5.25 3.75 9.75 9 11 5.25-1.25 9-5.75 9-11V7l-9-5z" fill="#2d3b38"/></svg>
+      Olith Banking
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" data-view="products">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>
+        Products
+      </div>
+      <div class="nav-item" data-view="transactions">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7h13M7 12h13M7 17h13"/><path d="M3 7h.01M3 12h.01M3 17h.01"/></svg>
+        Transactions
+      </div>
+      <div class="nav-item" data-view="external-banks">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l9-6 9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9"/><path d="M3 19h18"/></svg>
+        External Banks
+      </div>
+      <div class="nav-item" data-view="expense-tracker">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+        Expense Tracker
+      </div>
+      <div class="nav-item" data-view="products">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        Stacking Vault
+      </div>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="nav-item" data-view="products">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Settings
+      </div>
+      <div class="nav-item" id="logoutBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        Log Out
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ VIEW: PRODUCTS (original dashboard) ============ -->
+  <div class="view-flex active" id="view-products" style="flex-direction:row;">
+    <main class="main">
+      <div class="main-header">
+        <div class="welcome"><h1>Welcome back,<br><span id="welcomeName">Sandro</span>!</h1></div>
+        <div class="bell" id="bellBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b645f" stroke-width="1.8"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        </div>
+      </div>
+
+      <div class="balance-label">Balance</div>
+      <div class="balance-row">
+        <div class="balance-amount" id="balanceAmount">$12,280.51</div>
+        <div class="balance-actions">
+          <button class="pill-btn primary" id="sendBtn">Send</button>
+          <button class="pill-btn" id="receiveBtn">Receive</button>
+        </div>
+      </div>
+
+      <div class="section-title">Applied Cards</div>
+      <div class="cards-row">
+        <div class="card dark">
+          <div class="card-visual"><div class="chip"></div><div class="card-number">**** 3600</div><div class="card-exp">04/24</div></div>
+          <div><div class="card-balance-label">Balance</div><div class="card-balance-amount">$10,000.00</div></div>
+        </div>
+        <div class="card light">
+          <div class="card-visual"><div class="chip"></div><div class="card-number">6907</div></div>
+          <div><div class="card-balance-label">Balance</div><div class="card-balance-amount">$2,280.51</div></div>
+        </div>
+      </div>
+
+      <div class="section-title">Stacking Vaults</div>
+      <div class="vault-box">
+        <div>
+          <div class="vault-amount">$79,000.00</div>
+          <div class="vault-label">Stacking Vault</div>
+          <div class="vault-avatars"><div class="avatar"></div><div class="avatar"></div></div>
+        </div>
+        <div class="vault-actions">
+          <div class="vault-btn" id="addVaultBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add</div>
+          <div class="vault-btn" id="autoVaultBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.2 21 12 17.27 5.8 21 7 14.14l-5-4.87 7.1-1.01L12 2z"/></svg>Auto</div>
+        </div>
+      </div>
+    </main>
+
+    <section class="right-panel">
+      <div class="rp-header">
+        <h2>Latest Transactions</h2>
+        <div class="rp-header-icons">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </div>
+      </div>
+
+      <div class="date-label">Recent</div>
+      <div id="txnList">
+        <div class="txn" data-name="Payment to Nick" data-amount="-560.00" data-type="Transfer" data-category="Personal Payment" data-time="11:20 AM">
+          <div class="txn-left"><div class="txn-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5451" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div><div class="txn-name">Payment to Nick</div></div>
+          <div class="txn-amount negative">$560.00</div>
+        </div>
+      </div>
+
+      <div class="divider-line"></div>
+
+      <div class="payment-details">
+        <div class="pd-header"><h2>Payment Details</h2><div class="pd-more"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/></svg></div></div>
+        <div class="pd-from-row">
+          <div><div class="pd-from-label">From</div><div class="pd-from-name" id="pdFromName">Olith Bank Refund</div></div>
+          <div class="pd-amount" id="pdAmount">+1,550.00</div>
+        </div>
+        <div class="pd-meta">
+          <div class="pd-meta-col"><div class="pd-meta-label">Type</div><div class="pd-meta-value" id="pdType">Cash Refund</div></div>
+          <div class="pd-meta-col"><div class="pd-meta-label">Category</div><div class="pd-meta-value" id="pdCategory">Annual Cashback</div></div>
+          <div class="pd-meta-col pd-meta-right"><div class="pd-meta-label" id="pdTime">1:48 PM</div><div class="pd-meta-value">Mon, Mar 1</div></div>
+        </div>
+        <div class="pd-actions">
+          <button class="pd-btn" id="manageBtn">Manage</button>
+          <button class="pd-btn secondary" id="invoiceBtn">Invoice</button>
+          <button class="pd-btn" id="addRecipientBtn">Add as a Recipient</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ VIEW: EXTERNAL BANKS ============ -->
+  <div class="view-flex" id="view-external-banks" style="padding:28px 36px; overflow-y:auto;">
+    <div class="main-header">
+      <div class="welcome"><h1>External Banks</h1></div>
+    </div>
+
+    <div class="connect-bank-card">
+      <div class="cb-text">
+        <h3>Connect a bank account</h3>
+        <p>Securely link external accounts via Plaid to see all your balances and spending in one place.</p>
+      </div>
+      <button class="connect-btn" id="connectBankBtn">+ Connect a Bank</button>
+    </div>
+
+    <div id="ebEmpty" class="eb-empty">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10l9-6 9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9"/><path d="M3 19h18"/></svg>
+      <p>No banks connected yet. Click "Connect a Bank" to link your first account.</p>
+    </div>
+
+    <div class="institutions-grid" id="institutionsGrid"></div>
+
+    <!-- Drill-down transactions panel for a selected institution -->
+    <div id="institutionTxnPanel" class="hidden" style="margin-top:24px;">
+      <div class="rp-header">
+        <h2 id="institutionTxnTitle">Institution Transactions</h2>
+        <div class="pd-btn" id="disconnectBankBtn" style="cursor:pointer;">Disconnect</div>
+      </div>
+      <div id="institutionTxnList"></div>
+    </div>
+  </div>
+
+  <!-- ============ VIEW: EXPENSE TRACKER ============ -->
+  <div class="view-flex" id="view-expense-tracker" style="padding:28px 36px; overflow-y:auto;">
+    <div class="main-header">
+      <div class="welcome"><h1>Expense Tracker</h1></div>
+    </div>
+
+    <div class="et-summary-row">
+      <div class="et-summary-card">
+        <div class="et-summary-label">This Month's Spend</div>
+        <div class="et-summary-value spend" id="etTotalSpend">$0.00</div>
+      </div>
+      <div class="et-summary-card">
+        <div class="et-summary-label">Linked Accounts</div>
+        <div class="et-summary-value" id="etLinkedAccounts">0</div>
+      </div>
+      <div class="et-summary-card">
+        <div class="et-summary-label">Top Category</div>
+        <div class="et-summary-value" id="etTopCategory">-</div>
+      </div>
+    </div>
+
+    <div class="section-title">Spending by Category</div>
+    <div class="category-row" id="categoryRow"></div>
+  </div>
+
+</div>
+
+<script>
+  // Inject Stripe
+  const stripeScript = document.createElement('script');
+  stripeScript.src = 'https://js.stripe.com/v3/';
+  document.head.appendChild(stripeScript);
+
+  const state = {
+    user: null,
+    institutions: [],
+    selectedInstitutionId: null,
+    accounts: [],
+    transactions: []
+  };
+
+  const CATEGORY_COLORS = {
+    'Food & Drink': '#c98a6b',
+    'Transport': '#6b8fc9',
+    'Shopping': '#b5544a',
+    'Bills & Utilities': '#7f938d',
+    'Entertainment': '#a97fc9',
+    'Transfers': '#45524e',
+    'Other': '#c9b56b'
+  };
+
+  const authScreen = document.getElementById('authScreen');
+  const appShell = document.getElementById('appShell');
+  const loginForm = document.getElementById('loginForm');
+  const signupForm = document.getElementById('signupForm');
+
+  document.getElementById('showSignup').addEventListener('click', () => {
+    loginForm.classList.add('hidden'); signupForm.classList.remove('hidden');
+  });
+  document.getElementById('showLogin').addEventListener('click', () => {
+    signupForm.classList.add('hidden'); loginForm.classList.remove('hidden');
+  });
+
+  // Handle URL query parameters or route paths (e.g. ?action=signup vs ?action=login)
+  const urlParams = new URLSearchParams(window.location.search);
+  const actionParam = urlParams.get('action');
+  if (actionParam === 'signup' || window.location.pathname.endsWith('/signup')) {
+    loginForm.classList.add('hidden');
+    signupForm.classList.remove('hidden');
+  } else {
+    signupForm.classList.add('hidden');
+    loginForm.classList.remove('hidden');
+  }
+
+  document.getElementById('signupSubmit').addEventListener('click', async () => {
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    const err = document.getElementById('signupError');
+    if(!name || !email || !password || password.length < 8){
+      err.textContent = 'Please fill all fields - password must be at least 8 characters.';
+      err.style.display = 'block';
+      return;
+    }
+    err.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ full_name: name, email, password })
+      });
+      if(!res.ok) throw new Error('Signup failed');
+      
+      const loginRes = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password })
+      });
+      if(loginRes.ok) checkAuth();
+    } catch(e) {
+      err.textContent = e.message;
+      err.style.display = 'block';
+    }
+  });
+
+  document.getElementById('loginSubmit').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const err = document.getElementById('loginError');
+    if(!email || !password){
+      err.textContent = 'Enter your email and password.';
+      err.style.display = 'block';
+      return;
+    }
+    err.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password })
+      });
+      if(!res.ok) throw new Error('Login failed');
+      checkAuth();
+    } catch(e) {
+      err.textContent = 'Invalid credentials';
+      err.style.display = 'block';
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    state.user = null;
+    appShell.classList.add('hidden');
+    authScreen.classList.remove('hidden');
+  });
+
+  async function checkAuth() {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if(res.ok) {
+        state.user = await res.json();
+        enterApp();
+      }
+    } catch(e) {
+    }
+  }
+
+  function enterApp(){
+    authScreen.classList.add('hidden');
+    appShell.classList.remove('hidden');
+    document.getElementById('welcomeName').textContent = (state.user.full_name || state.user.email || 'there').split(' ')[0];
+    fetchData();
+  }
+
+  async function fetchData() {
+    try {
+      const [accRes, instRes] = await Promise.all([
+        fetch('/api/accounts', { credentials: 'include' }),
+        fetch('/api/bank/institutions', { credentials: 'include' })
+      ]);
+      
+      if(accRes.ok) {
+        const data = await accRes.json();
+        state.accounts = data.accounts || [];
+        state.transactions = data.transactions || [];
+        renderAccounts();
+      }
+      
+      if(instRes.ok) {
+        state.institutions = await instRes.json();
+      }
+      
+      renderInstitutions();
+      renderExpenseTracker();
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  function renderAccounts() {
+    const balanceAmount = state.accounts.reduce((sum, a) => sum + Number(a.balance || 0), 0);
+    document.getElementById('balanceAmount').textContent = '$' + balanceAmount.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    
+    const list = document.getElementById('txnList');
+    list.innerHTML = '';
+    state.transactions.slice(0, 5).forEach(t => {
+      const amountStr = Number(t.amount).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+      const isNeg = t.amount < 0;
+      const row = document.createElement('div');
+      row.className = 'txn';
+      row.dataset.name = t.description;
+      row.dataset.amount = t.amount;
+      row.dataset.type = 'Transfer';
+      row.dataset.category = t.category;
+      row.dataset.time = t.created_at ? new Date(t.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+      
+      row.innerHTML = `
+        <div class="txn-left">
+          <div class="txn-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5451" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="txn-name">${t.description}</div>
+        </div>
+        <div class="txn-amount ${isNeg ? 'negative' : ''}">${isNeg ? '' : '+'}$${amountStr.replace('-','')}</div>
+      `;
+      row.addEventListener('click', () => selectTxn(row));
+      list.appendChild(row);
+    });
+  }
+
+  const views = ['products','transactions','external-banks','expense-tracker'];
+  document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      const target = item.dataset.view;
+      views.forEach(v => {
+        const el = document.getElementById('view-' + v);
+        if(el) el.classList.toggle('active', v === target);
+      });
+      if(target === 'expense-tracker') renderExpenseTracker();
+    });
+  });
+
+  function selectTxn(el){
+    document.querySelectorAll('.txn').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    const name = el.dataset.name, amount = parseFloat(el.dataset.amount);
+    const type = el.dataset.type, category = el.dataset.category, time = el.dataset.time;
+    const formatted = Math.abs(amount).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const sign = amount >= 0 ? '+' : '-';
+    document.getElementById('pdFromName').textContent = name || 'Transaction';
+    document.getElementById('pdAmount').textContent = sign + formatted;
+    document.getElementById('pdAmount').style.color = amount >= 0 ? '#1f2d2b' : '#b5544a';
+    document.getElementById('pdType').textContent = type || '-';
+    document.getElementById('pdCategory').textContent = category || '-';
+    document.getElementById('pdTime').textContent = time || '-';
+  }
+  document.querySelectorAll('#view-products .txn').forEach(txn => txn.addEventListener('click', () => selectTxn(txn)));
+
+  const sendBtn = document.getElementById('sendBtn'), receiveBtn = document.getElementById('receiveBtn');
+  sendBtn.addEventListener('click', () => { sendBtn.classList.add('primary'); receiveBtn.classList.remove('primary'); });
+  receiveBtn.addEventListener('click', () => { receiveBtn.classList.add('primary'); sendBtn.classList.remove('primary'); });
+
+  document.getElementById('bellBtn').addEventListener('click', function(){
+    this.style.transform = 'scale(0.9)'; setTimeout(() => { this.style.transform = 'scale(1)'; }, 120);
+  });
+  ['addVaultBtn','autoVaultBtn'].forEach(id => {
+    document.getElementById(id).addEventListener('click', function(){
+      this.style.background = '#ececea'; setTimeout(() => { this.style.background = '#f6f6f4'; }, 150);
+    });
+  });
+  ['manageBtn','invoiceBtn','addRecipientBtn'].forEach(id => {
+    document.getElementById(id).addEventListener('click', function(){
+      this.style.background = '#e9e9e6'; setTimeout(() => { this.style.background = '#f9f9f7'; }, 150);
+    });
+  });
+
+  // STRIPE INTEGRATION POINT
+  let stripePromise = null;
+  async function getStripe() {
+    if (!stripePromise) {
+      const { publishable_key } = await fetch('/api/bank/config').then(r => r.json());
+      stripePromise = Stripe(publishable_key);
+    }
+    return stripePromise;
+  }
+
+  document.getElementById('connectBankBtn').addEventListener('click', async function(){
+    if (typeof Stripe === 'undefined') {
+      alert('Stripe script is still loading, please try again.');
+      return;
+    }
+    this.disabled = true;
+    this.textContent = 'Connecting...';
+    
+    try {
+      const stripe = await getStripe();
+      const res = await fetch('/api/bank/create_session', { method: 'POST', credentials: 'include' });
+      const { client_secret } = await res.json();
+      
+      const { financialConnectionsSession, error } = await stripe.collectFinancialConnectionsAccounts({ clientSecret: client_secret });
+      
+      if (error) {
+        throw error;
+      }
+
+      await fetch('/api/bank/session_complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ session_id: financialConnectionsSession.id })
+      });
+      fetchData(); // re-fetch and re-render
+    } catch(e) {
+      console.error(e);
+    } finally {
+      this.disabled = false;
+      this.textContent = '+ Connect a Bank';
+    }
+  });
+
+  document.getElementById('disconnectBankBtn').addEventListener('click', async function(){
+    if (!state.selectedInstitutionId) return;
+    try {
+      await fetch('/api/bank/institutions/' + state.selectedInstitutionId, { method: 'DELETE', credentials: 'include' });
+      state.selectedInstitutionId = null;
+      document.getElementById('institutionTxnPanel').classList.add('hidden');
+      fetchData();
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
+  function renderInstitutions(){
+    const grid = document.getElementById('institutionsGrid');
+    const empty = document.getElementById('ebEmpty');
+    grid.innerHTML = '';
+    if(state.institutions.length === 0){
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    state.institutions.forEach(inst => {
+      const card = document.createElement('div');
+      card.className = 'institution-card' + (inst.id === state.selectedInstitutionId ? ' selected' : '');
+      const color = inst.color || '#7f938d';
+      const balance = inst.balance || 0;
+      card.innerHTML = `
+        <div class="institution-left">
+          <div class="institution-logo" style="background:${color}">${(inst.name || 'B').charAt(0)}</div>
+          <div>
+            <div class="institution-name">${inst.name} <span class="institution-status">Connected</span></div>
+            <div class="institution-meta">Linked</div>
+          </div>
+        </div>
+        <div class="institution-balance"></div>
+      `;
+      card.addEventListener('click', () => {
+        state.selectedInstitutionId = inst.id;
+        renderInstitutions();
+        showInstitutionTransactions(inst);
+      });
+      grid.appendChild(card);
+    });
+  }
+
+  async function showInstitutionTransactions(inst){
+    const panel = document.getElementById('institutionTxnPanel');
+    const list = document.getElementById('institutionTxnList');
+    document.getElementById('institutionTxnTitle').textContent = inst.name + ' - Transactions';
+    list.innerHTML = 'Loading...';
+    panel.classList.remove('hidden');
+
+    try {
+      const res = await fetch('/api/bank/institutions/' + inst.id + '/transactions', { credentials: 'include' });
+      const data = await res.json();
+      const transactions = data.transactions || data || [];
+      
+      list.innerHTML = '';
+      if (transactions.length === 0) {
+        list.innerHTML = '<div style="padding: 20px; color: var(--text-muted);">No transactions found.</div>';
+        return;
+      }
+      
+      transactions.forEach(t => {
+        const row = document.createElement('div');
+        row.className = 'txn';
+        const catName = t.category || 'Other';
+        const color = CATEGORY_COLORS[catName] || CATEGORY_COLORS['Other'];
+        const amountStr = Math.abs(t.amount || 0).toFixed(2);
+        const dateStr = t.date || '';
+        
+        row.innerHTML = `
+          <div class="txn-left">
+            <div class="txn-icon"><span style="font-size:11px;color:${color}">O</span></div>
+            <div>
+              <div class="txn-name">${t.name}</div>
+              <div class="txn-sub">${catName} * ${dateStr}</div>
+            </div>
+          </div>
+          <div class="txn-amount negative">$${amountStr}</div>
+        `;
+        list.appendChild(row);
+      });
+    } catch(e) {
+      list.innerHTML = '<div style="padding: 20px; color: var(--red);">Error loading transactions.</div>';
+    }
+  }
+
+  async function renderExpenseTracker(){
+    let allTxns = [];
+    try {
+      for (const inst of state.institutions) {
+        const res = await fetch('/api/bank/institutions/' + inst.id + '/transactions', { credentials: 'include' });
+        const data = await res.json();
+        if (Array.isArray(data)) allTxns = allTxns.concat(data);
+        else if (data.transactions) allTxns = allTxns.concat(data.transactions);
+      }
+    } catch(e) {}
+    
+    let totalSpend = 0;
+    const totals = {};
+    
+    allTxns.forEach(t => {
+      const amt = Math.abs(t.amount || 0);
+      const cat = (t.category && t.category.length > 0) ? t.category[0] : 'Other';
+      totals[cat] = (totals[cat] || 0) + amt;
+      totalSpend += amt;
+    });
+
+    document.getElementById('etTotalSpend').textContent = '$' + totalSpend.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('etLinkedAccounts').textContent = state.institutions.length;
+    
+    const sortedCats = Object.entries(totals).sort((a,b) => b[1]-a[1]);
+    document.getElementById('etTopCategory').textContent = sortedCats.length ? sortedCats[0][0] : '-';
+
+    const row = document.getElementById('categoryRow');
+    row.innerHTML = '';
+    if(sortedCats.length === 0){
+      row.innerHTML = '<div class="eb-empty" style="padding:30px 0;">Connect a bank account to see your spending breakdown here.</div>';
+      return;
+    }
+    sortedCats.forEach(([cat, amt]) => {
+      const pct = Math.min(100, Math.round((amt/totalSpend)*100));
+      const item = document.createElement('div');
+      item.className = 'category-item';
+      const color = CATEGORY_COLORS[cat] || CATEGORY_COLORS['Other'];
+      item.innerHTML = `
+        <div class="category-top">
+          <div class="category-name"><span class="category-dot" style="background:${color}"></span>${cat}</div>
+          <div class="category-amount">$${amt.toFixed(2)} * ${pct}%</div>
+        </div>
+        <div class="category-bar-bg"><div class="category-bar-fill" style="width:${pct}%; background:${color}"></div></div>
+      `;
+      row.appendChild(item);
+    });
+  }
+
+  checkAuth();
+</script>
+
+</body>
+</html>
