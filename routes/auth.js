@@ -9,6 +9,7 @@ const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
 const nodeCrypto = require('crypto');
 const db       = require('../config/db');
+const supabase = require('../config/supabaseClient');
 const { requireAuth } = require('../middlewares/auth');
 const { authRateLimiter } = require('../middlewares/rateLimit');
 
@@ -32,6 +33,27 @@ const EMAIL_VERIFY  = () => process.env.EMAIL_VERIFY_REQUIRED === 'true';
 // ─── Helpers ───────────────────────────────────────────────────────────
 function generateAccountNumber() {
   return 'OLT' + Math.floor(1000000000000 + Math.random() * 9000000000000);
+}
+
+async function findUserByEmail(email) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function createAccount(userId) {
+  const accountNumber = generateAccountNumber();
+  const { error } = await supabase.from('accounts').insert({
+    user_id: userId,
+    account_name: 'Main Checking',
+    balance_cents: 0,
+  });
+  if (error) throw error;
+  return accountNumber;
 }
 
 function setAuthCookie(res, userId, role) {
@@ -85,29 +107,38 @@ router.post('/signup', authRateLimiter, async (req, res) => {
   }
 
   try {
-    const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
-    if (existing.length > 0) {
+    const existing = await findUserByEmail(email.trim().toLowerCase());
+    if (existing) {
       return res.status(400).json({ success: false, message: 'Email already registered.' });
     }
 
     const hash = await bcrypt.hash(password, 10);
     const initialStatus = EMAIL_VERIFY() ? 'pending' : 'active';
-
-    const [result] = await db.query(
-      "INSERT INTO users (full_name, email, password, role, status) VALUES (?, ?, ?, 'customer', ?)",
-      [full_name, email, hash, initialStatus]
-    );
-    const userId = result.insertId;
+    const { data: createdUser, error: createError } = await supabase
+      .from('users')
+      .insert({
+        full_name: full_name.trim(),
+        email: email.trim().toLowerCase(),
+        password_hash: hash,
+        role: 'user',
+        status: initialStatus,
+      })
+      .select('id, full_name, email, role, status')
+      .single();
+    if (createError) throw createError;
+    const userId = createdUser.id;
 
     if (EMAIL_VERIFY()) {
       // Create verification token
       const rawToken = nodeCrypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-      await db.query(
-        'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
-        [userId, rawToken, expiresAt]
-      );
+      const { error: tokenError } = await supabase.from('email_verification_tokens').insert({
+        user_id: userId,
+        token: rawToken,
+        expires_at: expiresAt.toISOString(),
+      });
+      if (tokenError) throw tokenError;
 
       await sendVerificationEmail(email, rawToken, req);
 
@@ -119,18 +150,14 @@ router.post('/signup', authRateLimiter, async (req, res) => {
     }
 
     // If no verification required, auto-create checking account + log in
-    const accountNumber = generateAccountNumber();
-    await db.query(
-      "INSERT INTO internal_accounts (user_id, account_number, account_name, account_type, balance, status) VALUES (?, ?, 'Main Checking', 'checking', 0.00, 'active')",
-      [userId, accountNumber]
-    );
+    await createAccount(userId);
 
-    setAuthCookie(res, userId, 'customer');
+    setAuthCookie(res, userId, 'user');
 
     return res.status(201).json({
       success: true,
       message: 'Account created successfully.',
-      user: { id: userId, name: full_name, email, role: 'customer' },
+      user: { id: userId, name: full_name.trim(), email: email.trim().toLowerCase(), role: 'user' },
     });
   } catch (err) {
     console.error('Signup error:', err);
@@ -191,16 +218,16 @@ router.post('/login', authRateLimiter, async (req, res) => {
     // Find or create admin user in DB
     let adminUser;
     try {
-      const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-      if (rows.length > 0) {
-        adminUser = rows[0];
-      } else {
+      adminUser = await findUserByEmail(email);
+      if (!adminUser) {
         const hash = await bcrypt.hash(password, 10);
-        const [result] = await db.query(
-          "INSERT INTO users (full_name, email, password, role, status) VALUES (?, ?, ?, 'admin', 'active')",
-          ['Admin', email, hash]
-        );
-        adminUser = { id: result.insertId, full_name: 'Admin', email, role: 'admin' };
+        const { data, error } = await supabase
+          .from('users')
+          .insert({ full_name: 'Admin', email, password_hash: hash, role: 'admin', status: 'active' })
+          .select('id, full_name, email, role')
+          .single();
+        if (error) throw error;
+        adminUser = data;
       }
     } catch (err) {
       console.error('Admin login error:', err);
@@ -219,12 +246,10 @@ router.post('/login', authRateLimiter, async (req, res) => {
   }
 
   try {
-    const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (rows.length === 0) {
+    const user = await findUserByEmail(email.trim().toLowerCase());
+    if (!user) {
       return res.status(400).json({ success: false, message: 'Invalid credentials.' });
     }
-
-    const user = rows[0];
 
     // Status checks
     if (user.status === 'pending') {
@@ -243,13 +268,10 @@ router.post('/login', authRateLimiter, async (req, res) => {
     }
 
     // Password check
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(400).json({ success: false, message: 'Invalid credentials.' });
     }
-
-    // Update last login
-    await db.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
 
     setAuthCookie(res, user.id, user.role);
 

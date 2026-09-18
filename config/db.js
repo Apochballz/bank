@@ -1,67 +1,92 @@
 // config/db.js
-// MySQL-compatible database adapter for the original application schema.
-const mysql = require('mysql2/promise');
+// PostgreSQL adapter for Supabase's hosted Postgres database.
+const { Pool } = require('pg');
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 5),
-  queueLimit: 0,
-  enableKeepAlive: true,
-  connectTimeout: 10000,
+const connectionString = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
+const pool = new Pool({
+  ...(connectionString
+    ? { connectionString }
+    : {
+        host: process.env.DB_HOST,
+        port: Number(process.env.DB_PORT || 5432),
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME,
+      }),
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  max: Number(process.env.DB_CONNECTION_LIMIT || 5),
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
 });
 
-/**
- * Keeps the original mysql2-style `[rows]` return shape used by the routes.
- * Parameters remain bound by mysql2 rather than interpolated into SQL.
- */
+function convertPlaceholders(sql) {
+  let index = 0;
+  return sql.replace(/\?/g, () => `$${++index}`);
+}
+
+function addReturningId(sql) {
+  if (/^\s*INSERT\s+INTO\s+/i.test(sql) && !/\bRETURNING\b/i.test(sql)) {
+    return `${sql.trim()} RETURNING id`;
+  }
+  return sql;
+}
 
 async function query(sql, params = []) {
-  const [result] = await pool.execute(sql, params);
-  const rows = Array.isArray(result) ? result : [];
+  const text = addReturningId(convertPlaceholders(sql));
+  const result = await pool.query(text, params);
+  const rows = result.rows || [];
 
-  if (!Array.isArray(result)) {
-    rows.insertId = result.insertId;
-    rows.affectedRows = result.affectedRows;
-  } else {
-    rows.affectedRows = rows.length;
+  if (/^\s*INSERT\s+INTO\s+/i.test(sql)) {
+    rows.insertId = rows[0]?.id ?? null;
   }
-
+  rows.affectedRows = result.rowCount || 0;
   return [rows];
 }
 
-/**
- * For compatibility with code that explicitly requests a connection (e.g. for
- * multi‑statement transactions). Supabase does not expose a raw connection, so
- * we expose a dummy object that satisfies the interface.
- */
 function getConnection() {
-  // Preserve the existing route/service contract while sharing the pool.
+  let client;
   return {
     query,
-    beginTransaction: async () => {},
-    commit: async () => {},
-    rollback: async () => {},
-    release: () => {},
+    beginTransaction: async () => {
+      client = await pool.connect();
+      await client.query('BEGIN');
+    },
+    commit: async () => {
+      if (client) await client.query('COMMIT');
+    },
+    rollback: async () => {
+      if (client) await client.query('ROLLBACK');
+    },
+    release: () => client?.release(),
   };
 }
 
-// Verify connection on startup – a simple ping query.
 (async () => {
-  if (!process.env.DB_HOST || !process.env.DB_USER || !process.env.DB_NAME) {
-    console.log('[DB] Database credentials not set. Skipping connection verification.');
+  if (!process.env.DB_HOST && !connectionString) {
+    console.warn('[DB] Supabase Postgres credentials are not configured.');
     return;
   }
   try {
-    await query('SELECT 1');
-    console.log('[DB] MySQL connection verified.');
+    await pool.query('SELECT 1');
+    console.log('[DB] Supabase Postgres connection verified.');
   } catch (err) {
-    console.error('[DB] MySQL connection failed:', err.message);
+    console.error('[DB] Supabase Postgres connection failed:', err.message);
   }
 })();
 
 module.exports = { query, getConnection };
+
+process.on('SIGTERM', async () => {
+  await pool.end();
+});
+process.on('SIGINT', async () => {
+  await pool.end();
+});
+process.on('uncaughtException', (err) => {
+  console.error('[DB] Unexpected database process error:', err);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[DB] Unhandled database rejection:', err);
+});
+
+module.exports.pool = pool;
