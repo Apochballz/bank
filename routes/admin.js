@@ -258,7 +258,8 @@ router.get('/transactions', async (req, res) => {
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
-    const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total FROM internal_transactions t ${where}`, params);
+    const [countRows] = await db.query(`SELECT COUNT(*) AS total FROM internal_transactions t ${where}`, params);
+    const total = countRows[0]?.total || 0;
     const [transactions] = await db.query(
       `SELECT t.*,
         fa.account_number AS from_account_number, fu.full_name AS from_user,

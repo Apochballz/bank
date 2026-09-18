@@ -63,9 +63,13 @@ async function query(sql, params = []) {
  * we expose a dummy object that satisfies the interface.
  */
 function getConnection() {
-  // No real connection in the Supabase client – return a placeholder with a dummy
-  // `release` method to keep existing `finally` blocks happy.
+  // Supabase RPC calls do not expose a mysql2 connection. Keep the existing
+  // route/service contract working while delegating every query to the client.
   return {
+    query,
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => {},
     release: () => {},
   };
 }
