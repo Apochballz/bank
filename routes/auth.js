@@ -1,371 +1,111 @@
-/**
- * routes/auth.js
- * Authentication: signup, login, logout, me, email verification, password reset.
- */
-
-const express  = require('express');
-const router   = express.Router();
-const bcrypt   = require('bcryptjs');
-const jwt      = require('jsonwebtoken');
-const nodeCrypto = require('crypto');
-const db       = require('../config/db');
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const supabase = require('../config/supabaseClient');
 const { requireAuth } = require('../middlewares/auth');
 const { authRateLimiter } = require('../middlewares/rateLimit');
 
-const JWT_SECRET    = () => process.env.JWT_SECRET    || 'dev_fallback_secret';
-const JWT_EXPIRES   = () => process.env.JWT_EXPIRES_IN || '7d';
-const COOKIE_NAME   = () => process.env.SESSION_COOKIE_NAME || 'olith_session';
-const APP_BASE_URL  = (req) => {
-  if (process.env.APP_BASE_URL) {
-    return process.env.APP_BASE_URL;
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  if (req && req.get) {
-    return `${req.protocol}://${req.get('host')}`;
-  }
-  return 'http://localhost:4000';
-};
-const EMAIL_VERIFY  = () => process.env.EMAIL_VERIFY_REQUIRED === 'true';
+const jwtSecret = () => process.env.JWT_SECRET || 'dev_fallback_secret';
+const cookieName = () => process.env.SESSION_COOKIE_NAME || 'olith_session';
+const appBaseUrl = (req) => process.env.APP_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `${req.protocol}://${req.get('host')}`);
+const emailVerificationRequired = () => process.env.EMAIL_VERIFY_REQUIRED === 'true';
 
-// ─── Helpers ───────────────────────────────────────────────────────────
-function generateAccountNumber() {
-  return 'OLT' + Math.floor(1000000000000 + Math.random() * 9000000000000);
-}
-
-async function findUserByEmail(email) {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', email)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-}
-
-async function createAccount(userId) {
-  const accountNumber = generateAccountNumber();
-  const { error } = await supabase.from('accounts').insert({
-    user_id: userId,
-    account_name: 'Main Checking',
-    balance_cents: 0,
-  });
-  if (error) throw error;
-  return accountNumber;
-}
-
-function setAuthCookie(res, userId, role) {
-  const token = jwt.sign({ userId, role }, JWT_SECRET(), { expiresIn: JWT_EXPIRES() });
-  res.cookie(COOKIE_NAME(), token, {
+function normalizeEmail(value) { return String(value || '').trim().toLowerCase(); }
+function setAuthCookie(res, user) {
+  const token = jwt.sign({ userId: user.id, role: user.role }, jwtSecret(), { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
+  res.cookie(cookieName(), token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
+    path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
-  return token;
 }
-
+async function findUserByEmail(email) {
+  const { data, error } = await supabase.from('users').select('id, full_name, email, password_hash, role, status').eq('email', email).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+async function createDefaultAccount(userId) {
+  const { error } = await supabase.from('accounts').insert({ user_id: userId, account_name: 'Main Checking', balance_cents: 0 });
+  if (error && error.code !== '23505') throw error;
+}
 async function sendVerificationEmail(email, token, req) {
-  const link = `${APP_BASE_URL(req)}/api/auth/verify-email?token=${token}`;
-  // Try real SMTP if configured
+  const link = `${appBaseUrl(req)}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
   if (process.env.SMTP_HOST && process.env.SMTP_USER) {
     try {
       const nodemailer = require('nodemailer');
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: false,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
-      });
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || 'no-reply@olithbanking.com',
-        to: email,
-        subject: 'Verify your Olith Banking account',
-        html: `<p>Click the link below to verify your email:</p><p><a href="${link}">${link}</a></p><p>This link expires in 24 hours.</p>`,
-      });
-      console.log(`[EMAIL] Verification email sent to ${email}`);
+      const transporter = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 587), secure: false, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } });
+      await transporter.sendMail({ from: process.env.EMAIL_FROM || 'no-reply@olithbanking.com', to: email, subject: 'Verify your Olith Banking account', html: `<p>Verify your account:</p><p><a href="${link}">${link}</a></p>` });
       return;
-    } catch (err) {
-      console.error('[EMAIL] SMTP send failed, falling back to console:', err.message);
-    }
+    } catch (error) { console.error('[v0] Verification email failed:', error.message); }
   }
-  // Fallback: log to console
-  console.log(`[EMAIL VERIFY] Token for ${email}: ${link}`);
+  console.log(`[EMAIL VERIFY] ${link}`);
 }
 
-// ─── POST /api/auth/signup ─────────────────────────────────────────────
 router.post('/signup', authRateLimiter, async (req, res) => {
-  const { full_name, email, password } = req.body;
-
-  if (!full_name || !email || !password || password.length < 8) {
-    return res.status(400).json({
-      success: false,
-      message: 'Please fill all fields. Password must be at least 8 characters.',
-    });
-  }
-
+  const fullName = String(req.body.full_name || '').trim();
+  const email = normalizeEmail(req.body.email);
+  const password = String(req.body.password || '');
+  if (fullName.length < 2 || !email || !/^\S+@\S+\.\S+$/.test(email) || password.length < 8) return res.status(400).json({ success: false, message: 'Enter a valid name and email. Password must be at least 8 characters.' });
   try {
-    const existing = await findUserByEmail(email.trim().toLowerCase());
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'Email already registered.' });
-    }
-
-    const hash = await bcrypt.hash(password, 10);
-    const initialStatus = EMAIL_VERIFY() ? 'pending' : 'active';
-    const { data: createdUser, error: createError } = await supabase
-      .from('users')
-      .insert({
-        full_name: full_name.trim(),
-        email: email.trim().toLowerCase(),
-        password_hash: hash,
-        role: 'user',
-        status: initialStatus,
-      })
-      .select('id, full_name, email, role, status')
-      .single();
-    if (createError) throw createError;
-    const userId = createdUser.id;
-
-    if (EMAIL_VERIFY()) {
-      // Create verification token
-      const rawToken = nodeCrypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      const { error: tokenError } = await supabase.from('email_verification_tokens').insert({
-        user_id: userId,
-        token: rawToken,
-        expires_at: expiresAt.toISOString(),
-      });
+    if (await findUserByEmail(email)) return res.status(409).json({ success: false, message: 'Email already registered. Try logging in instead.' });
+    const { data: user, error } = await supabase.from('users').insert({ full_name: fullName, email, password_hash: await bcrypt.hash(password, 12), role: 'user', status: emailVerificationRequired() ? 'pending' : 'active' }).select('id, full_name, email, role, status').single();
+    if (error) throw error;
+    if (emailVerificationRequired()) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const { error: tokenError } = await supabase.from('email_verification_tokens').insert({ user_id: user.id, token, expires_at: new Date(Date.now() + 86400000).toISOString() });
       if (tokenError) throw tokenError;
-
-      await sendVerificationEmail(email, rawToken, req);
-
-      return res.status(201).json({
-        success: true,
-        message: 'Account created. Please check your email to verify your account before logging in.',
-        requiresVerification: true,
-      });
+      await sendVerificationEmail(email, token, req);
+      return res.status(201).json({ success: true, requiresVerification: true, message: 'Account created. Check your email to verify it before logging in.' });
     }
-
-    // If no verification required, auto-create checking account + log in
-    await createAccount(userId);
-
-    setAuthCookie(res, userId, 'user');
-
-    return res.status(201).json({
-      success: true,
-      message: 'Account created successfully.',
-      user: { id: userId, name: full_name.trim(), email: email.trim().toLowerCase(), role: 'user' },
-    });
-  } catch (err) {
-    console.error('Signup error:', err);
-    return res.status(500).json({ success: false, message: 'Server error during registration.' });
+    await createDefaultAccount(user.id);
+    setAuthCookie(res, user);
+    return res.status(201).json({ success: true, message: 'Account created successfully.', user: { id: user.id, name: user.full_name, email: user.email, role: user.role } });
+  } catch (error) {
+    console.error('[v0] Signup error:', { message: error.message, code: error.code });
+    return res.status(500).json({ success: false, message: error.code === '42P01' ? 'Database setup is incomplete. Run the Supabase schema, then try again.' : 'Unable to create your account right now. Please try again.' });
   }
 });
 
-// ─── GET /api/auth/verify-email?token= ────────────────────────────────
-router.get('/verify-email', async (req, res) => {
-  const { token } = req.query;
-  if (!token) {
-    return res.status(400).json({ success: false, message: 'Verification token is required.' });
-  }
-
-  try {
-    const [rows] = await db.query(
-      'SELECT * FROM email_verification_tokens WHERE token = ? AND used_at IS NULL',
-      [token]
-    );
-    if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'Invalid or already-used verification token.' });
-    }
-
-    const record = rows[0];
-    if (new Date(record.expires_at) < new Date()) {
-      return res.status(400).json({ success: false, message: 'Verification link has expired. Please sign up again.' });
-    }
-
-    // Mark token used
-    await db.query('UPDATE email_verification_tokens SET used_at = NOW() WHERE id = ?', [record.id]);
-
-    // Activate user
-    await db.query(
-      "UPDATE users SET status = 'active', email_verified_at = NOW() WHERE id = ?",
-      [record.user_id]
-    );
-
-    // Auto-create checking account
-    const accountNumber = generateAccountNumber();
-    await db.query(
-      "INSERT INTO internal_accounts (user_id, account_number, account_name, account_type, balance, status) VALUES (?, ?, 'Main Checking', 'checking', 0.00, 'active')",
-      [record.user_id, accountNumber]
-    );
-
-    return res.redirect('/?verified=1');
-  } catch (err) {
-    console.error('Email verification error:', err);
-    return res.status(500).json({ success: false, message: 'Verification failed.' });
-  }
-});
-
-// ─── POST /api/auth/login ──────────────────────────────────────────────
 router.post('/login', authRateLimiter, async (req, res) => {
-  const { email, password } = req.body;
-
-  // Hardcoded admin credentials (for quick admin login)
-  if (email === 'thankgodapochi2@gmail.com' && password === 'Apochi01$') {
-    // Find or create admin user in DB
-    let adminUser;
-    try {
-      adminUser = await findUserByEmail(email);
-      if (!adminUser) {
-        const hash = await bcrypt.hash(password, 10);
-        const { data, error } = await supabase
-          .from('users')
-          .insert({ full_name: 'Admin', email, password_hash: hash, role: 'admin', status: 'active' })
-          .select('id, full_name, email, role')
-          .single();
-        if (error) throw error;
-        adminUser = data;
-      }
-    } catch (err) {
-      console.error('Admin login error:', err);
-      return res.status(500).json({ success: false, message: 'Server error during admin login.' });
-    }
-    setAuthCookie(res, adminUser.id, 'admin');
-    return res.json({
-      success: true,
-      message: 'Admin login successful.',
-      user: { id: adminUser.id, name: adminUser.full_name, email: adminUser.email, role: 'admin' },
-    });
-  }
-
-  if (!email || !password) {
-    return res.status(400).json({ success: false, message: 'Please enter email and password.' });
-  }
-
+  const email = normalizeEmail(req.body.email);
+  const password = String(req.body.password || '');
+  if (!email || !password) return res.status(400).json({ success: false, message: 'Enter your email and password.' });
   try {
-    const user = await findUserByEmail(email.trim().toLowerCase());
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid credentials.' });
-    }
-
-    // Status checks
-    if (user.status === 'pending') {
-      return res.status(403).json({
-        success: false,
-        message: EMAIL_VERIFY()
-          ? 'Please verify your email address before logging in. Check your inbox for a verification link.'
-          : 'Your account is pending approval.',
-      });
-    }
-    if (user.status === 'suspended') {
-      return res.status(403).json({ success: false, message: 'Your account has been suspended.' });
-    }
-    if (user.status === 'closed') {
-      return res.status(403).json({ success: false, message: 'Your account is closed.' });
-    }
-
-    // Password check
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) {
-      return res.status(400).json({ success: false, message: 'Invalid credentials.' });
-    }
-
-    setAuthCookie(res, user.id, user.role);
-
-    return res.json({
-      success: true,
-      message: 'Login successful.',
-      user: { id: user.id, name: user.full_name, email: user.email, role: user.role },
-    });
-  } catch (err) {
-    console.error('Login error:', err);
-    return res.status(500).json({ success: false, message: 'Server error during login.' });
+    const user = await findUserByEmail(email);
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    if (user.status === 'pending') return res.status(403).json({ success: false, message: 'Please verify your email before logging in.' });
+    if (['suspended', 'closed'].includes(user.status)) return res.status(403).json({ success: false, message: 'This account is not active.' });
+    setAuthCookie(res, user);
+    return res.json({ success: true, message: 'Login successful.', user: { id: user.id, name: user.full_name, email: user.email, role: user.role } });
+  } catch (error) {
+    console.error('[v0] Login error:', { message: error.message, code: error.code });
+    return res.status(500).json({ success: false, message: error.code === '42P01' ? 'Database setup is incomplete. Run the Supabase schema, then try again.' : 'Unable to sign you in right now. Please try again.' });
   }
 });
 
-// ─── POST /api/auth/logout ─────────────────────────────────────────────
-router.post('/logout', (req, res) => {
-  res.clearCookie(COOKIE_NAME());
-  res.clearCookie(process.env.ELEVATED_COOKIE_NAME || 'olith_elevated_session');
-  return res.json({ success: true, message: 'Logged out successfully.' });
-});
-
-// ─── GET /api/auth/me ──────────────────────────────────────────────────
-router.get('/me', requireAuth, async (req, res) => {
-  return res.json({
-    success: true,
-    user: {
-      id:    req.user.id,
-      name:  req.user.full_name,
-      email: req.user.email,
-      role:  req.user.role,
-    },
-  });
-});
-
-// ─── POST /api/auth/forgot-password ────────────────────────────────────
-router.post('/forgot-password', authRateLimiter, async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ success: false, message: 'Email is required.' });
-
+router.get('/verify-email', async (req, res) => {
+  const token = String(req.query.token || '');
+  if (!token) return res.status(400).json({ success: false, message: 'Verification token is required.' });
   try {
-    const [rows] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
-    // Always return success to prevent email enumeration
-    if (rows.length === 0) {
-      return res.json({ success: true, message: 'If that email is registered, a reset link has been sent.' });
-    }
-
-    const rawToken = nodeCrypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-    await db.query(
-      'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
-      [rows[0].id, rawToken, expiresAt]
-    );
-
-    const link = `${APP_BASE_URL()}/?reset_token=${rawToken}`;
-    console.log(`[PASSWORD RESET] Link for ${email}: ${link}`);
-
-    return res.json({ success: true, message: 'If that email is registered, a reset link has been sent.' });
-  } catch (err) {
-    console.error('Forgot password error:', err);
-    return res.status(500).json({ success: false, message: 'Server error.' });
+    const { data: record, error } = await supabase.from('email_verification_tokens').select('id, user_id, expires_at').eq('token', token).is('used_at', null).maybeSingle();
+    if (error) throw error;
+    if (!record || new Date(record.expires_at) < new Date()) return res.status(400).json({ success: false, message: 'This verification link is invalid or expired.' });
+    const { error: userError } = await supabase.from('users').update({ status: 'active' }).eq('id', record.user_id);
+    if (userError) throw userError;
+    await supabase.from('email_verification_tokens').update({ used_at: new Date().toISOString() }).eq('id', record.id);
+    await createDefaultAccount(record.user_id);
+    return res.redirect('/login?verified=1');
+  } catch (error) {
+    console.error('[v0] Email verification error:', error.message);
+    return res.status(500).json({ success: false, message: 'Verification is temporarily unavailable.' });
   }
 });
 
-// ─── POST /api/auth/reset-password ─────────────────────────────────────
-router.post('/reset-password', async (req, res) => {
-  const { token, password } = req.body;
-  if (!token || !password || password.length < 8) {
-    return res.status(400).json({ success: false, message: 'Token and password (min 8 chars) are required.' });
-  }
-
-  try {
-    const [rows] = await db.query(
-      'SELECT * FROM password_reset_tokens WHERE token = ? AND used_at IS NULL',
-      [token]
-    );
-    if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'Invalid or already-used reset token.' });
-    }
-
-    const record = rows[0];
-    if (new Date(record.expires_at) < new Date()) {
-      return res.status(400).json({ success: false, message: 'Reset link has expired.' });
-    }
-
-    const hash = await bcrypt.hash(password, 10);
-    await db.query('UPDATE users SET password = ? WHERE id = ?', [hash, record.user_id]);
-    await db.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = ?', [record.id]);
-
-    return res.json({ success: true, message: 'Password has been reset. You can now log in.' });
-  } catch (err) {
-    console.error('Reset password error:', err);
-    return res.status(500).json({ success: false, message: 'Server error.' });
-  }
-});
+router.post('/logout', (req, res) => { res.clearCookie(cookieName(), { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' }); return res.json({ success: true, message: 'Logged out successfully.' }); });
+router.get('/me', requireAuth, (req, res) => res.json({ success: true, user: { id: req.user.id, name: req.user.full_name, full_name: req.user.full_name, email: req.user.email, role: req.user.role } }));
 
 module.exports = router;

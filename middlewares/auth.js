@@ -51,20 +51,11 @@ async function requireAuth(req, res, next) {
  * Must be used AFTER requireAuth.
  * 403 if user does not have an admin-tier role.
  */
-async function requireAdmin(req, res, next) {
-  try {
-    const { data: role, error } = await supabase
-      .from('admin_roles')
-      .select('name')
-      .eq('name', req.user.role)
-      .maybeSingle();
-    if (error || !role) {
-      return res.status(403).json({ success: false, message: 'Admin access required.' });
-    }
-    next();
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Authorization check failed.' });
+function requireAdmin(req, res, next) {
+  if (!req.user || !['admin', 'super_admin'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Admin access required.' });
   }
+  next();
 }
 
 /**

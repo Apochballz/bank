@@ -122,9 +122,19 @@
   .auth-error{
     font-size:12.5px;
     color: var(--red);
+    background: #fff4f2;
+    border: 1px solid #f0d1cc;
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
     margin-bottom:12px;
     display:none;
   }
+  .auth-error.success{ color: var(--green); background:#f1f8f3; border-color:#cfe4d5; }
+  .auth-submit{ transition: transform .15s ease, background .2s ease, opacity .2s ease; }
+  .auth-submit:disabled{ cursor:wait; opacity:.7; transform:scale(.99); }
+  .auth-form.is-submitting{ animation: authPulse 1.2s ease-in-out infinite; }
+  @keyframes authPulse{ 50%{ opacity:.72; } }
+  @media (prefers-reduced-motion: reduce){ .auth-form.is-submitting{ animation:none; } }
   .auth-back-link{
     display: inline-flex;
     align-items: center;
@@ -350,7 +360,7 @@
       <div class="field"><label>Password</label><input type="password" id="loginPassword" placeholder="********"></div>
       <button class="auth-submit" id="loginSubmit">Log In</button>
       <div class="auth-switch">Don't have an account? <a id="showSignup">Sign up</a></div>
-      <div class="auth-note">Demo build: any email/password combination signed up locally will work. Backend wiring points are marked in the JS below (<code>// API INTEGRATION POINT</code>).</div>
+      <div class="auth-note">Your account is securely stored in Supabase. Use the same email and password each time you sign in.</div>
     </div>
     <!-- Signup -->
     <div class="auth-form hidden" id="signupForm">
@@ -599,7 +609,16 @@
     loginForm.classList.remove('hidden');
   }
 
+  function setAuthState(form, button, message, success = false) {
+    form.classList.toggle('is-submitting', Boolean(button.disabled));
+    button.disabled = Boolean(button.disabled);
+    message.classList.toggle('success', success);
+    message.style.display = message.textContent ? 'block' : 'none';
+  }
+
   document.getElementById('signupSubmit').addEventListener('click', async () => {
+    const form = document.getElementById('signupForm');
+    const button = document.getElementById('signupSubmit');
     const name = document.getElementById('signupName').value.trim();
     const email = document.getElementById('signupEmail').value.trim();
     const password = document.getElementById('signupPassword').value;
@@ -610,6 +629,10 @@
       return;
     }
     err.style.display = 'none';
+    err.classList.remove('success');
+    button.disabled = true;
+    button.textContent = 'Creating account…';
+    form.classList.add('is-submitting');
 
     try {
       const res = await fetch('/api/auth/signup', {
@@ -622,6 +645,7 @@
       if(!res.ok) throw new Error(signupData.message || 'Signup failed');
       if (signupData.requiresVerification) {
         err.textContent = signupData.message;
+        err.classList.add('success');
         err.style.display = 'block';
         return;
       }
@@ -638,10 +662,16 @@
     } catch(e) {
       err.textContent = e.message || 'Signup failed';
       err.style.display = 'block';
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Create Account';
+      form.classList.remove('is-submitting');
     }
   });
 
   document.getElementById('loginSubmit').addEventListener('click', async () => {
+    const form = document.getElementById('loginForm');
+    const button = document.getElementById('loginSubmit');
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
     const err = document.getElementById('loginError');
@@ -651,6 +681,9 @@
       return;
     }
     err.style.display = 'none';
+    button.disabled = true;
+    button.textContent = 'Signing in…';
+    form.classList.add('is-submitting');
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -665,6 +698,10 @@
     } catch(e) {
       err.textContent = e.message || 'Login failed';
       err.style.display = 'block';
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Log In';
+      form.classList.remove('is-submitting');
     }
   });
 
