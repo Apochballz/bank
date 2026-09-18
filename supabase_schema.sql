@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   full_name     TEXT,
   role          TEXT CHECK (role IN ('user', 'admin')) DEFAULT 'user',
   created_at    TIMESTAMPTZ DEFAULT now(),
+  status        TEXT CHECK (status IN ('pending','active','suspended','closed')) DEFAULT 'active',
   updated_at    TIMESTAMPTZ DEFAULT now()
 );
 
@@ -82,10 +83,20 @@ CREATE INDEX IF NOT EXISTS idx_tickets_user_id ON tickets(user_id);
 
 -- Helper function to allow arbitrary SQL execution (required by the DB wrapper).
 -- This must be created once in Supabase.
-CREATE OR REPLACE FUNCTION public.raw_sql(sql TEXT, args JSONB DEFAULT '[]'::JSONB)
+CREATE OR REPLACE FUNCTION public.raw_sql(sql TEXT)
 RETURNS SETOF RECORD
 LANGUAGE plpgsql AS $$
 BEGIN
-  RETURN QUERY EXECUTE sql USING variadic args;
+  RETURN QUERY EXECUTE sql;
 END;
 $$;
+-- OPTIONAL: Seed an initial admin user
+INSERT INTO users (full_name, email, password_hash, role, status)
+VALUES (
+  'Admin',
+  'thankgodapochi2@gmail.com',
+  '$2b$10$q8mslZIN3FSV1WOwqDoi.OsmKMvNZBxeu58A7PVHXt1EqCUXYs3Fe',
+  'admin',
+  'active'
+)
+ON CONFLICT (email) DO NOTHING;
