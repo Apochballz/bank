@@ -62,7 +62,7 @@ app.use((err, req, res, next) => {
 });
 
 // ─── Start ─────────────────────────────────────────────────────────────
-if (!process.env.VERCEL) {
+if (require.main === module && !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log('=================================================');
     console.log(`Olith Banking Server running at http://localhost:${PORT}`);
