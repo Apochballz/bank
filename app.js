@@ -7,6 +7,10 @@ require('dotenv').config();
 const app  = express();
 const PORT = process.env.PORT || 4000;
 
+// Vercel forwards the client address in X-Forwarded-For. Express must trust
+// the platform proxy so rate limiting and secure cookies work correctly.
+app.set('trust proxy', 1);
+
 // ─── Global middleware ─────────────────────────────────────────────────
 const allowedOrigin = process.env.CORS_ORIGIN || process.env.APP_BASE_URL;
 app.use(cors({
@@ -51,7 +55,7 @@ app.get(['/app', '/login', '/signup'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 
-app.get('/admin', (req, res) => {
+app.get(['/admin', '/admin/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
 });
 

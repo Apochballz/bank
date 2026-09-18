@@ -618,7 +618,13 @@
         credentials: 'include',
         body: JSON.stringify({ full_name: name, email, password })
       });
-      if(!res.ok) throw new Error('Signup failed');
+      const signupData = await res.json().catch(() => ({}));
+      if(!res.ok) throw new Error(signupData.message || 'Signup failed');
+      if (signupData.requiresVerification) {
+        err.textContent = signupData.message;
+        err.style.display = 'block';
+        return;
+      }
       
       const loginRes = await fetch('/api/auth/login', {
         method: 'POST',
@@ -626,9 +632,11 @@
         credentials: 'include',
         body: JSON.stringify({ email, password })
       });
-      if(loginRes.ok) checkAuth();
+      const loginData = await loginRes.json().catch(() => ({}));
+      if(!loginRes.ok) throw new Error(loginData.message || 'Login failed');
+      checkAuth();
     } catch(e) {
-      err.textContent = e.message;
+      err.textContent = e.message || 'Signup failed';
       err.style.display = 'block';
     }
   });
@@ -651,10 +659,11 @@
         credentials: 'include',
         body: JSON.stringify({ email, password })
       });
-      if(!res.ok) throw new Error('Login failed');
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok) throw new Error(data.message || 'Login failed');
       checkAuth();
     } catch(e) {
-      err.textContent = 'Invalid credentials';
+      err.textContent = e.message || 'Login failed';
       err.style.display = 'block';
     }
   });
@@ -670,7 +679,8 @@
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include' });
       if(res.ok) {
-        state.user = await res.json();
+        const data = await res.json();
+        state.user = data.user || data;
         enterApp();
       }
     } catch(e) {
