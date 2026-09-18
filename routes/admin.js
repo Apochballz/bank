@@ -20,7 +20,11 @@ const { requireAuth, requireAdmin, requireSuperAdmin, requireReauth } = require(
 const JWT_SECRET      = () => process.env.JWT_SECRET || 'dev_fallback_secret';
 const ELEVATED_COOKIE = () => process.env.ELEVATED_COOKIE_NAME || 'olith_elevated_session';
 const ELEVATED_MINS   = () => parseInt(process.env.ELEVATED_SESSION_MINUTES) || 15;
-const BACKUP_DIR      = path.join(__dirname, '..', 'backups');
+// Vercel functions cannot write inside the deployed /var/task bundle. Use ephemeral
+// /tmp storage there; local development keeps the persistent project backup folder.
+const BACKUP_DIR      = process.env.VERCEL
+  ? path.join('/tmp', 'olith-banking-backups')
+  : path.join(__dirname, '..', 'backups');
 
 // Ensure backup directory exists
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
