@@ -20,7 +20,11 @@ const { requireAuth, requireAdmin, requireSuperAdmin, requireReauth } = require(
 const JWT_SECRET      = () => process.env.JWT_SECRET || 'dev_fallback_secret';
 const ELEVATED_COOKIE = () => process.env.ELEVATED_COOKIE_NAME || 'olith_elevated_session';
 const ELEVATED_MINS   = () => parseInt(process.env.ELEVATED_SESSION_MINUTES) || 15;
-const BACKUP_DIR      = path.join(__dirname, '..', 'backups');
+// Vercel functions cannot write inside the deployed /var/task bundle. Use ephemeral
+// /tmp storage there; local development keeps the persistent project backup folder.
+const BACKUP_DIR      = process.env.VERCEL
+  ? path.join('/tmp', 'olith-banking-backups')
+  : path.join(__dirname, '..', 'backups');
 
 // Ensure backup directory exists
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
@@ -254,7 +258,8 @@ router.get('/transactions', async (req, res) => {
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
-    const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total FROM internal_transactions t ${where}`, params);
+    const [countRows] = await db.query(`SELECT COUNT(*) AS total FROM internal_transactions t ${where}`, params);
+    const total = countRows[0]?.total || 0;
     const [transactions] = await db.query(
       `SELECT t.*,
         fa.account_number AS from_account_number, fu.full_name AS from_user,
