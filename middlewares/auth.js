@@ -4,7 +4,7 @@
  */
 
 const jwt  = require('jsonwebtoken');
-const db   = require('../config/db');
+const supabase = require('../config/supabaseClient');
 
 const JWT_SECRET      = () => process.env.JWT_SECRET || 'dev_fallback_secret';
 const COOKIE_NAME     = () => process.env.SESSION_COOKIE_NAME || 'olith_session';
@@ -24,15 +24,14 @@ async function requireAuth(req, res, next) {
 
     const decoded = jwt.verify(token, JWT_SECRET());
 
-    const [rows] = await db.query(
-      'SELECT id, full_name, email, phone, role, status FROM users WHERE id = ?',
-      [decoded.userId]
-    );
-    if (rows.length === 0) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, full_name, email, phone, role, status')
+      .eq('id', decoded.userId)
+      .maybeSingle();
+    if (error || !user) {
       return res.status(401).json({ success: false, message: 'User not found.' });
     }
-
-    const user = rows[0];
     if (user.status === 'suspended' || user.status === 'closed') {
       return res.status(403).json({ success: false, message: 'Account is not active.' });
     }
@@ -54,8 +53,12 @@ async function requireAuth(req, res, next) {
  */
 async function requireAdmin(req, res, next) {
   try {
-    const [roles] = await db.query('SELECT name FROM admin_roles WHERE name = ?', [req.user.role]);
-    if (roles.length === 0) {
+    const { data: role, error } = await supabase
+      .from('admin_roles')
+      .select('name')
+      .eq('name', req.user.role)
+      .maybeSingle();
+    if (error || !role) {
       return res.status(403).json({ success: false, message: 'Admin access required.' });
     }
     next();
