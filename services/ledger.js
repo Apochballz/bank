@@ -7,8 +7,8 @@
  * anywhere else in the codebase.
  */
 
+const crypto = require('crypto');
 const db = require('../config/db');
-const { v4: uuidv4 } = require('uuid');
 
 // ─── Risk level mapping for audit log entries ───
 const HIGH_RISK_ACTIONS = new Set([
@@ -84,7 +84,7 @@ async function mutateBalance(accountId, amount, type, category, description, tra
     );
 
     // Write transaction row
-    const transactionRef = 'TXN-' + uuidv4().split('-')[0].toUpperCase();
+    const transactionRef = 'TXN-' + crypto.randomUUID().split('-')[0].toUpperCase();
     const totalAmount    = Math.abs(delta);
 
     await conn.query(
@@ -160,7 +160,7 @@ async function transferFunds(fromAccountId, toAccountId, amount, fee, category, 
     await conn.query('UPDATE internal_accounts SET balance = ? WHERE id = ?', [fromNewBalance.toFixed(2), fromAccountId]);
     await conn.query('UPDATE internal_accounts SET balance = ? WHERE id = ?', [toNewBalance.toFixed(2), toAccountId]);
 
-    const transactionRef = 'TXN-' + uuidv4().split('-')[0].toUpperCase();
+    const transactionRef = 'TXN-' + crypto.randomUUID().split('-')[0].toUpperCase();
 
     await conn.query(
       `INSERT INTO internal_transactions
