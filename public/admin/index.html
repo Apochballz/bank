@@ -672,12 +672,14 @@
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     try {
-      await fetch('/api/auth/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         credentials: 'include',
         body: JSON.stringify({ email, password })
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Login failed');
       await checkAuth();
     } catch(err) {
       document.getElementById('login-error').innerText = 'Login failed';
@@ -694,7 +696,8 @@
     try {
       const res = await fetch('/api/auth/me', {credentials: 'include'});
       if (!res.ok) throw new Error();
-      const user = await res.json();
+      const data = await res.json();
+      const user = data.user || data;
       if (user.role !== 'admin' && user.role !== 'super_admin') throw new Error('Not an admin');
       
       currentUser = user;

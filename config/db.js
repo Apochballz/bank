@@ -1,58 +1,35 @@
 // config/db.js
-// Wrapper that mimics the old MySQL `query(sql, params)` signature using Supabase.
+// MySQL-compatible database adapter for the original application schema.
+const mysql = require('mysql2/promise');
 
-const supabase = require('./supabaseClient');
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 5),
+  queueLimit: 0,
+  enableKeepAlive: true,
+  connectTimeout: 10000,
+});
 
 /**
- * Executes arbitrary SQL against Supabase (PostgreSQL) using the helper
- * function `public.raw_sql(sql text, args jsonb)`. The function returns rows
- * in an array to keep compatibility with the previous MySQL pool API.
- *
- * @param {string} sql   SQL statement. Use `?` placeholders (like MySQL); they will be
- *                       converted to `$1, $2, …` before execution.
- * @param {Array<any>} [params=[]] Parameter values for the placeholders.
- * @returns {Promise<[any[]]>}  Resolves with `[rows]` – a single‑element array where the
- *                               first element is the array of result rows.
+ * Keeps the original mysql2-style `[rows]` return shape used by the routes.
+ * Parameters remain bound by mysql2 rather than interpolated into SQL.
  */
-function formatSql(sql, params = []) {
-  if (!params || params.length === 0) return sql;
-  let i = 0;
-  return sql.replace(/\?/g, () => {
-    if (i >= params.length) return 'NULL';
-    const val = params[i++];
-    if (val === null || val === undefined) return 'NULL';
-    if (typeof val === 'number') return Number.isFinite(val) ? String(val) : 'NULL';
-    if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
-    if (val instanceof Date) return `'${val.toISOString()}'`;
-    if (typeof val === 'object') return `'${JSON.stringify(val).replace(/'/g, "''")}'::jsonb`;
-    return `'${String(val).replace(/'/g, "''")}'`;
-  });
-}
 
 async function query(sql, params = []) {
-  let executableSql = formatSql(sql, params);
+  const [result] = await pool.execute(sql, params);
+  const rows = Array.isArray(result) ? result : [];
 
-  // Automatically append RETURNING id for INSERT queries to satisfy insertId callers
-  const isInsert = /^\s*insert\s+/i.test(executableSql);
-  if (isInsert && !/returning/i.test(executableSql)) {
-    executableSql += ' RETURNING id';
+  if (!Array.isArray(result)) {
+    rows.insertId = result.insertId;
+    rows.affectedRows = result.affectedRows;
+  } else {
+    rows.affectedRows = rows.length;
   }
-
-  // Call the raw_sql RPC function in Supabase
-  const { data, error } = await supabase.rpc('raw_sql', {
-    sql: executableSql,
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  // data is an array of rows. Attach insertId for INSERT compatibility.
-  const rows = Array.isArray(data) ? data : [];
-  if (rows.length > 0 && rows[0].id !== undefined) {
-    rows.insertId = rows[0].id;
-  }
-  rows.affectedRows = rows.length;
 
   return [rows];
 }
@@ -63,8 +40,7 @@ async function query(sql, params = []) {
  * we expose a dummy object that satisfies the interface.
  */
 function getConnection() {
-  // Supabase RPC calls do not expose a mysql2 connection. Keep the existing
-  // route/service contract working while delegating every query to the client.
+  // Preserve the existing route/service contract while sharing the pool.
   return {
     query,
     beginTransaction: async () => {},
@@ -76,15 +52,15 @@ function getConnection() {
 
 // Verify connection on startup – a simple ping query.
 (async () => {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.log('[DB] Supabase credentials not set yet. Skipping connection verification.');
+  if (!process.env.DB_HOST || !process.env.DB_USER || !process.env.DB_NAME) {
+    console.log('[DB] Database credentials not set. Skipping connection verification.');
     return;
   }
   try {
     await query('SELECT 1');
-    console.log('[DB] Supabase connection verified.');
+    console.log('[DB] MySQL connection verified.');
   } catch (err) {
-    console.error('[DB] Supabase connection failed:', err.message);
+    console.error('[DB] MySQL connection failed:', err.message);
   }
 })();
 
