@@ -4,14 +4,15 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder_service_role_key';
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  console.warn('[WARN] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set. Set these in Vercel or .env for database operations.');
+const supabase = supabaseUrl && supabaseKey
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
+
+if (!supabase) {
+  console.warn('[WARN] Supabase credentials are not configured. Database-backed routes will return a configuration error.');
 }
-
-// Create a Supabase client that uses the service‑role key which has full DB privileges.
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = supabase;
